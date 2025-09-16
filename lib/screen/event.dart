@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:moto/screen/BaseLayout.dart';
 
-class HameScreen extends StatelessWidget {
-  const HameScreen({super.key});
+class EventScreen extends StatelessWidget {
+  const EventScreen({super.key});
 
   @override
   Widget build(BuildContext context) {

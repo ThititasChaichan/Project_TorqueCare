@@ -129,7 +129,9 @@ class _SplashScreenState extends State<SplashScreen>
             right: 0,
             child: FadeTransition(
               opacity: _fadelogin,
-              child: Center(child: SizedBox(width: 320, child: LoginField())),
+              child: Center(
+                child: SizedBox(width: 320, height: 500, child: LoginField()),
+              ),
             ),
           ),
         ],

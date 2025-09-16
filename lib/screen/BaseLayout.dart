@@ -2,9 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:moto/screen/setting.dart';
 import 'package:moto/screen/home.dart';
-import 'package:moto/screen/hume.dart';
-import 'package:moto/screen/heme.dart';
-import 'package:moto/screen/hame.dart';
+import 'package:moto/screen/notification.dart';
+import 'package:moto/screen/history.dart';
+import 'package:moto/screen/event.dart';
+import 'package:moto/screen/report.dart';
 
 class BaseLayout extends StatelessWidget {
   final Widget body;
@@ -117,15 +118,17 @@ class _AnimatedBarState extends State<AnimatedBar>
   double getLeftPosition(int index) {
     switch (index) {
       case 0:
-        return 22;
+        return 12;
       case 1:
-        return 117;
+        return 88;
       case 2:
-        return 212;
+        return 164;
       case 3:
-        return 307;
+        return 240;
+      case 4:
+        return 316;
       default:
-        return 22;
+        return 12;
     }
   }
 
@@ -209,7 +212,7 @@ class _MyAnimatedIconButtonState extends State<MyAnimatedIconButton> {
           iconInactive: Icons.home_rounded,
           color: Colors.white,
           sizeActive: 30,
-          sizeInactive: 25,
+          sizeInactive: 35,
         ),
         _buildAnimatedIcon(
           context,
@@ -218,7 +221,7 @@ class _MyAnimatedIconButtonState extends State<MyAnimatedIconButton> {
           iconInactive: Icons.notifications_rounded,
           color: const Color.fromARGB(255, 255, 255, 255),
           sizeActive: 30,
-          sizeInactive: 25,
+          sizeInactive: 35,
         ),
         _buildAnimatedIcon(
           context,
@@ -227,16 +230,25 @@ class _MyAnimatedIconButtonState extends State<MyAnimatedIconButton> {
           iconInactive: Icons.book_rounded,
           color: const Color.fromARGB(255, 255, 255, 255),
           sizeActive: 30,
-          sizeInactive: 25,
+          sizeInactive: 30,
         ),
         _buildAnimatedIcon(
           context,
           index: 3,
+          iconActive: Icons.stacked_line_chart_rounded,
+          iconInactive: Icons.show_chart_rounded,
+          color: const Color.fromARGB(255, 255, 255, 255),
+          sizeActive: 30,
+          sizeInactive: 35,
+        ),
+        _buildAnimatedIcon(
+          context,
+          index: 4,
           iconActive: Icons.bookmarks_rounded,
           iconInactive: Icons.bookmark_rounded,
           color: const Color.fromARGB(255, 255, 255, 255),
           sizeActive: 25,
-          sizeInactive: 20,
+          sizeInactive: 30,
         ),
       ],
     );
@@ -272,7 +284,7 @@ class _MyAnimatedIconButtonState extends State<MyAnimatedIconButton> {
               context,
               PageRouteBuilder(
                 pageBuilder: (_, animation, __) =>
-                    BaseLayout(body: HumeScreen(), activeIndex: 1),
+                    BaseLayout(body: NotificationScreen(), activeIndex: 1),
                 transitionsBuilder: (_, animation, __, child) =>
                     FadeTransition(opacity: animation, child: child),
               ),
@@ -283,7 +295,7 @@ class _MyAnimatedIconButtonState extends State<MyAnimatedIconButton> {
               context,
               PageRouteBuilder(
                 pageBuilder: (_, animation, __) =>
-                    BaseLayout(body: HemeScreen(), activeIndex: 2),
+                    BaseLayout(body: HistoryScreen(), activeIndex: 2),
                 transitionsBuilder: (_, animation, __, child) =>
                     FadeTransition(opacity: animation, child: child),
               ),
@@ -294,7 +306,18 @@ class _MyAnimatedIconButtonState extends State<MyAnimatedIconButton> {
               context,
               PageRouteBuilder(
                 pageBuilder: (_, animation, __) =>
-                    BaseLayout(body: HameScreen(), activeIndex: 3),
+                    BaseLayout(body: ReportScreen(), activeIndex: 3),
+                transitionsBuilder: (_, animation, __, child) =>
+                    FadeTransition(opacity: animation, child: child),
+              ),
+            );
+            break;
+          case 4:
+            Navigator.push(
+              context,
+              PageRouteBuilder(
+                pageBuilder: (_, animation, __) =>
+                    BaseLayout(body: EventScreen(), activeIndex: 4),
                 transitionsBuilder: (_, animation, __, child) =>
                     FadeTransition(opacity: animation, child: child),
               ),

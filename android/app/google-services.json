@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "197513505238",
+    "project_id": "flutter-project-torque-85cc2",
+    "storage_bucket": "flutter-project-torque-85cc2.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:197513505238:android:f36d995920e4a385169c77",
+        "android_client_info": {
+          "package_name": "com.example.moto"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyClBgH_txW9Zn6C-mEIw0zifZXOutCHsPo"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

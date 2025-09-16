@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 // import 'package:moto/screen/BaseLayout.dart';
 
-class HemeScreen extends StatelessWidget {
-  const HemeScreen({super.key});
+class NotificationScreen extends StatelessWidget {
+  const NotificationScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -12,8 +12,8 @@ class HemeScreen extends StatelessWidget {
           width: 320,
           height: 800,
           padding: EdgeInsets.all(16),
-          color: const Color.fromARGB(255, 0, 255, 34),
-          child: Text('sdgsdgsdg', style: TextStyle(fontSize: 24)),
+          color: const Color.fromARGB(255, 255, 0, 0),
+          child: Text('somes day', style: TextStyle(fontSize: 24)),
         ),
       ),
     );
