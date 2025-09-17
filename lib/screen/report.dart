@@ -7,12 +7,25 @@ class ReportScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       body: Center(
-        child: Container(
-          width: 320,
-          height: 800,
-          padding: EdgeInsets.all(16),
-          color: const Color.fromARGB(255, 0, 0, 0),
-          child: Text('zdfsghzdfhzdf', style: TextStyle(fontSize: 24)),
+        child: Align(
+          alignment: Alignment.topCenter,
+          child: Padding(
+            padding: const EdgeInsets.only(top: 20),
+            child: Container(
+              width: 400,
+              height: 500,
+              decoration: BoxDecoration(
+                color: const Color.fromARGB(255, 217, 255, 0),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.black, width: 2),
+              ),
+              padding: const EdgeInsets.all(16),
+              child: const Text(
+                'Report Screen',
+                style: TextStyle(fontSize: 24),
+              ),
+            ),
+          ),
         ),
       ),
     );
