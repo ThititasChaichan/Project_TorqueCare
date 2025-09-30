@@ -10,7 +10,6 @@ import 'package:moto/screen/report.dart';
 class BaseLayout extends StatelessWidget {
   final Widget body;
   final int activeIndex;
-
   const BaseLayout({super.key, required this.body, required this.activeIndex});
 
   @override
@@ -27,38 +26,46 @@ PreferredSizeWidget buildCustomAppBar({
   required BuildContext context,
   required String title,
 }) {
+  final screenHeight = MediaQuery.of(context).size.height;
+  final screenWidth = MediaQuery.of(context).size.width;
+
   return PreferredSize(
-    preferredSize: Size.fromHeight(80.0),
+    preferredSize: Size.fromHeight(screenHeight * 0.12),
     child: AppBar(
       automaticallyImplyLeading: false,
       backgroundColor: const Color.fromARGB(255, 131, 0, 0),
+      titleSpacing: 0,
       title: Row(
-        mainAxisAlignment: MainAxisAlignment.start,
         children: [
+          SizedBox(width: screenWidth * 0.02),
           IconButton(
-            icon: Icon(Icons.menu, size: 30, color: Colors.white),
+            icon: Icon(
+              Icons.menu,
+              size: screenWidth * 0.08,
+              color: Colors.white,
+            ),
             onPressed: () {
               Navigator.push(
                 context,
                 PageRouteBuilder(
-                  pageBuilder: (context, animation, secondaryanimation) =>
-                      SettingScreen(),
-                  transitionsBuilder:
-                      (context, animation, secondaryanimation, child) {
-                        return FadeTransition(opacity: animation, child: child);
-                      },
+                  pageBuilder: (_, animation, __) => SettingScreen(),
+                  transitionsBuilder: (_, animation, __, child) =>
+                      FadeTransition(opacity: animation, child: child),
                 ),
               );
             },
           ),
-          SvgPicture.asset('assets/SVG_light_logo.svg', height: 100),
-          SizedBox(width: 8),
+          SvgPicture.asset(
+            'assets/SVG_light_logo.svg',
+            height: screenHeight * 0.08, // responsive
+          ),
+          SizedBox(width: screenWidth * 0.02),
           Text(
             title,
             style: TextStyle(
-              color: Colors.white, // เปลี่ยนสีตัวหนังสือ
-              fontSize: 30, // (เพิ่มเติม) ขนาดตัวหนังสือ
-              fontWeight: FontWeight.bold, // (เพิ่มเติม) ตัวหนา
+              color: Colors.white,
+              fontSize: screenWidth * 0.06, // responsive font
+              fontWeight: FontWeight.bold,
             ),
           ),
         ],
@@ -67,26 +74,13 @@ PreferredSizeWidget buildCustomAppBar({
   );
 }
 
-// Widget _roundedBox() {
-//   return Positioned(
-//     top: 12,
-//     left: 3,
-//     child: Container(
-//       width: 60,
-//       height: 40,
-//       decoration: BoxDecoration(
-//         color: Colors.orange,
-//         borderRadius: BorderRadius.circular(12),
-//       ),
-//     ),
-//   );
-// }
-
 BottomAppBar bottomNavigationBar(BuildContext context, int activeIndex) {
+  final screenHeight = MediaQuery.of(context).size.height;
+
   return BottomAppBar(
     color: const Color.fromARGB(255, 0, 26, 255),
     child: SizedBox(
-      height: 60,
+      height: screenHeight * 0.09, // responsive height
       child: Stack(
         children: [
           AnimatedBar(activeIndex: activeIndex),
@@ -109,43 +103,29 @@ class AnimatedBar extends StatefulWidget {
 }
 
 class _AnimatedBarState extends State<AnimatedBar>
-    with TickerProviderStateMixin {
+    with SingleTickerProviderStateMixin {
   late AnimationController _controller;
-  late Animation<double> _position;
+  late Animation<double> _alignX;
+  double _currentX = -1;
 
-  double _currentLeft = 22;
-
-  double getLeftPosition(int index) {
-    switch (index) {
-      case 0:
-        return 12;
-      case 1:
-        return 88;
-      case 2:
-        return 164;
-      case 3:
-        return 240;
-      case 4:
-        return 316;
-      default:
-        return 12;
-    }
+  double getAlignX(int index, int itemCount) {
+    double x = (index / (itemCount - 0.8)) * 2 - 1;
+    return x + 0.05;
   }
 
   @override
   void initState() {
     super.initState();
-
-    _currentLeft = getLeftPosition(widget.activeIndex); // <-- เพิ่มบรรทัดนี้
-
     _controller = AnimationController(
-      duration: Duration(seconds: 5),
       vsync: this,
+      duration: const Duration(milliseconds: 400),
     );
 
-    _position = Tween<double>(
-      begin: _currentLeft,
-      end: _currentLeft,
+    _currentX = getAlignX(widget.activeIndex, 5);
+
+    _alignX = Tween<double>(
+      begin: _currentX,
+      end: _currentX,
     ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
   }
 
@@ -153,15 +133,16 @@ class _AnimatedBarState extends State<AnimatedBar>
   void didUpdateWidget(covariant AnimatedBar oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.activeIndex != widget.activeIndex) {
-      double newLeft = getLeftPosition(widget.activeIndex);
+      final newX = getAlignX(widget.activeIndex, 5);
 
-      _position = Tween<double>(begin: _currentLeft, end: newLeft).animate(
-        CurvedAnimation(parent: _controller, curve: Curves.fastOutSlowIn),
-      );
+      _alignX = Tween<double>(
+        begin: _currentX,
+        end: newX,
+      ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
 
       _controller.reset();
       _controller.forward();
-      _currentLeft = newLeft;
+      _currentX = newX;
     }
   }
 
@@ -173,17 +154,24 @@ class _AnimatedBarState extends State<AnimatedBar>
 
   @override
   Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final screenHeight = MediaQuery.of(context).size.height;
+
     return AnimatedBuilder(
-      animation: _controller,
+      animation: _alignX,
       builder: (context, child) {
-        return Transform.translate(
-          offset: Offset(_position.value, 30),
+        return Align(
+          alignment: Alignment(_alignX.value, 1.0),
           child: Container(
-            width: 50,
-            height: 30,
+            width: screenWidth * 0.12,
+            height: screenHeight * 0.02,
+            margin: EdgeInsets.symmetric(
+              horizontal: screenWidth * 0.015,
+              vertical: screenHeight * 0.01,
+            ),
             decoration: BoxDecoration(
               color: const Color.fromARGB(255, 31, 2, 158),
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(screenWidth * 0.03),
             ),
           ),
         );
@@ -202,134 +190,103 @@ class MyAnimatedIconButton extends StatefulWidget {
 class _MyAnimatedIconButtonState extends State<MyAnimatedIconButton> {
   @override
   Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceAround,
       children: [
         _buildAnimatedIcon(
           context,
-          index: 0,
-          iconActive: Icons.house_rounded,
-          iconInactive: Icons.home_rounded,
-          color: Colors.white,
-          sizeActive: 30,
-          sizeInactive: 35,
+          0,
+          Icons.house_rounded,
+          Icons.home_rounded,
+          Colors.white,
+          screenWidth,
         ),
         _buildAnimatedIcon(
           context,
-          index: 1,
-          iconActive: Icons.notifications_active_rounded,
-          iconInactive: Icons.notifications_rounded,
-          color: const Color.fromARGB(255, 255, 255, 255),
-          sizeActive: 30,
-          sizeInactive: 35,
+          1,
+          Icons.notifications_active_rounded,
+          Icons.notifications_rounded,
+          Colors.white,
+          screenWidth,
         ),
         _buildAnimatedIcon(
           context,
-          index: 2,
-          iconActive: Icons.menu_book_rounded,
-          iconInactive: Icons.book_rounded,
-          color: const Color.fromARGB(255, 255, 255, 255),
-          sizeActive: 30,
-          sizeInactive: 30,
+          2,
+          Icons.menu_book_rounded,
+          Icons.book_rounded,
+          Colors.white,
+          screenWidth,
         ),
         _buildAnimatedIcon(
           context,
-          index: 3,
-          iconActive: Icons.stacked_line_chart_rounded,
-          iconInactive: Icons.show_chart_rounded,
-          color: const Color.fromARGB(255, 255, 255, 255),
-          sizeActive: 30,
-          sizeInactive: 35,
+          3,
+          Icons.stacked_line_chart_rounded,
+          Icons.show_chart_rounded,
+          Colors.white,
+          screenWidth,
         ),
         _buildAnimatedIcon(
           context,
-          index: 4,
-          iconActive: Icons.bookmarks_rounded,
-          iconInactive: Icons.bookmark_rounded,
-          color: const Color.fromARGB(255, 255, 255, 255),
-          sizeActive: 25,
-          sizeInactive: 30,
+          4,
+          Icons.bookmarks_rounded,
+          Icons.bookmark_rounded,
+          Colors.white,
+          screenWidth,
         ),
       ],
     );
   }
 
   Widget _buildAnimatedIcon(
-    BuildContext context, {
-    required int index,
-    required IconData iconActive,
-    required IconData iconInactive,
-    required Color color,
-    required double sizeActive,
-    required double sizeInactive,
-  }) {
+    BuildContext context,
+    int index,
+    IconData iconActive,
+    IconData iconInactive,
+    Color color,
+    double screenWidth,
+  ) {
     bool isActive = index == widget.activeIndex;
+    final double sizeActive = screenWidth * 0.07;
+    final double sizeInactive = screenWidth * 0.065;
 
     return IconButton(
       onPressed: () {
+        Widget nextScreen;
         switch (index) {
           case 0:
-            Navigator.pushReplacement(
-              context,
-              PageRouteBuilder(
-                pageBuilder: (_, animation, __) =>
-                    BaseLayout(body: HomeScreen(), activeIndex: 0),
-                transitionsBuilder: (_, animation, __, child) =>
-                    FadeTransition(opacity: animation, child: child),
-              ),
-            );
+            nextScreen = BaseLayout(body: HomeScreen(), activeIndex: 0);
             break;
           case 1:
-            Navigator.push(
-              context,
-              PageRouteBuilder(
-                pageBuilder: (_, animation, __) =>
-                    BaseLayout(body: NotificationScreen(), activeIndex: 1),
-                transitionsBuilder: (_, animation, __, child) =>
-                    FadeTransition(opacity: animation, child: child),
-              ),
-            );
+            nextScreen = BaseLayout(body: NotificationScreen(), activeIndex: 1);
             break;
           case 2:
-            Navigator.push(
-              context,
-              PageRouteBuilder(
-                pageBuilder: (_, animation, __) =>
-                    BaseLayout(body: HistoryScreen(), activeIndex: 2),
-                transitionsBuilder: (_, animation, __, child) =>
-                    FadeTransition(opacity: animation, child: child),
-              ),
-            );
+            nextScreen = BaseLayout(body: HistoryScreen(), activeIndex: 2);
             break;
           case 3:
-            Navigator.push(
-              context,
-              PageRouteBuilder(
-                pageBuilder: (_, animation, __) =>
-                    BaseLayout(body: ReportScreen(), activeIndex: 3),
-                transitionsBuilder: (_, animation, __, child) =>
-                    FadeTransition(opacity: animation, child: child),
-              ),
-            );
+            nextScreen = BaseLayout(body: ReportScreen(), activeIndex: 3);
             break;
           case 4:
-            Navigator.push(
-              context,
-              PageRouteBuilder(
-                pageBuilder: (_, animation, __) =>
-                    BaseLayout(body: EventScreen(), activeIndex: 4),
-                transitionsBuilder: (_, animation, __, child) =>
-                    FadeTransition(opacity: animation, child: child),
-              ),
-            );
+            nextScreen = BaseLayout(body: EventScreen(), activeIndex: 4);
             break;
+          default:
+            nextScreen = BaseLayout(body: HomeScreen(), activeIndex: 0);
         }
+
+        Navigator.pushReplacement(
+          context,
+          PageRouteBuilder(
+            pageBuilder: (_, animation, __) => nextScreen,
+            transitionsBuilder: (_, animation, __, child) =>
+                FadeTransition(opacity: animation, child: child),
+          ),
+        );
       },
       icon: AnimatedSwitcher(
         duration: Duration(milliseconds: 300),
-        transitionBuilder: (child, animation) {
-          return ScaleTransition(scale: animation, child: child);
-        },
+        transitionBuilder: (child, animation) =>
+            ScaleTransition(scale: animation, child: child),
         child: Icon(
           isActive ? iconActive : iconInactive,
           size: isActive ? sizeActive : sizeInactive,
@@ -340,350 +297,3 @@ class _MyAnimatedIconButtonState extends State<MyAnimatedIconButton> {
     );
   }
 }
-
-
-
-
-
-
-// import 'package:flutter/material.dart';
-// import 'package:flutter_svg/flutter_svg.dart';
-// import 'package:moto/screen/setting.dart';
-// import 'package:moto/screen/home.dart';
-// import 'package:moto/screen/hume.dart';
-// import 'package:moto/screen/heme.dart';
-// import 'package:moto/screen/hame.dart';
-
-// class BaseLayout extends StatelessWidget {
-//   final Widget body;
-//   final int activeIndex;
-
-//   const BaseLayout({super.key, required this.body, required this.activeIndex});
-
-//   @override
-//   Widget build(BuildContext context) {
-//     return Scaffold(
-//       appBar: buildCustomAppBar(context: context, title: 'หน้าแรก'),
-//       body: body,
-//       bottomNavigationBar: bottomNavigationBar(context, activeIndex),
-//     );
-//   }
-// }
-
-// PreferredSizeWidget buildCustomAppBar({
-//   required BuildContext context,
-//   required String title,
-// }) {
-//   return PreferredSize(
-//     preferredSize: Size.fromHeight(80.0),
-//     child: AppBar(
-//       automaticallyImplyLeading: false,
-//       backgroundColor: const Color.fromARGB(255, 131, 0, 0),
-//       title: Row(
-//         mainAxisAlignment: MainAxisAlignment.start,
-//         children: [
-//           IconButton(
-//             icon: Icon(Icons.menu, size: 30, color: Colors.white),
-//             onPressed: () {
-//               Navigator.push(
-//                 context,
-//                 PageRouteBuilder(
-//                   pageBuilder: (context, animation, secondaryanimation) =>
-//                       SettingScreen(),
-//                   transitionsBuilder:
-//                       (context, animation, secondaryanimation, child) {
-//                         return FadeTransition(opacity: animation, child: child);
-//                       },
-//                 ),
-//               );
-//             },
-//           ),
-//           SvgPicture.asset('assets/SVG_light_logo.svg', height: 100),
-//           SizedBox(width: 8),
-//           Text(
-//             title,
-//             style: TextStyle(
-//               color: Colors.white, // เปลี่ยนสีตัวหนังสือ
-//               fontSize: 30, // (เพิ่มเติม) ขนาดตัวหนังสือ
-//               fontWeight: FontWeight.bold, // (เพิ่มเติม) ตัวหนา
-//             ),
-//           ),
-//         ],
-//       ),
-//     ),
-//   );
-// }
-
-// // Widget _roundedBox() {
-// //   return Positioned(
-// //     top: 12,
-// //     left: 3,
-// //     child: Container(
-// //       width: 60,
-// //       height: 40,
-// //       decoration: BoxDecoration(
-// //         color: Colors.orange,
-// //         borderRadius: BorderRadius.circular(12),
-// //       ),
-// //     ),
-// //   );
-// // }
-
-// BottomAppBar bottomNavigationBar(BuildContext context, int activeIndex) {
-//   return BottomAppBar(
-//     color: const Color.fromARGB(255, 0, 26, 255),
-//     child: SizedBox(
-//       height: 60,
-//       child: Stack(
-//         children: [
-//           AnimatedBar(activeIndex: activeIndex),
-//           Align(
-//             alignment: Alignment.bottomCenter,
-//             child: MyAnimatedIconButton(activeIndex: activeIndex),
-//           ),
-//         ],
-//       ),
-//     ),
-//   );
-// }
-
-// class AnimatedBar extends StatefulWidget {
-//   final int activeIndex;
-//   const AnimatedBar({super.key, required this.activeIndex});
-
-//   @override
-//   State<AnimatedBar> createState() => _AnimatedBarState();
-// }
-
-// class _AnimatedBarState extends State<AnimatedBar> {
-//   double getLeftPosition(int index) {
-//     switch (index) {
-//       case 0:
-//         return 22;
-//       case 1:
-//         return 117;
-//       case 2:
-//         return 212;
-//       case 3:
-//         return 307;
-//       default:
-//         return 22;
-//     }
-//   }
-
-//   late double _left;
-
-//   @override
-//   void initState() {
-//     super.initState();
-//     _left = getLeftPosition(widget.activeIndex);
-//   }
-
-//   @override
-//   void didUpdateWidget(covariant AnimatedBar oldWidget) {
-//     super.didUpdateWidget(oldWidget);
-//     if (oldWidget.activeIndex != widget.activeIndex) {
-//       setState(() {
-//         _left = getLeftPosition(widget.activeIndex);
-//       });
-//     }
-//   }
-
-//   @override
-//   Widget build(BuildContext context) {
-//     return AnimatedPositioned(
-//       duration: Duration(milliseconds: 300),
-//       curve: Curves.easeInOut,
-//       top: 10,
-//       left: _left,
-//       child: Container(
-//         width: 50,
-//         height: 40,
-//         decoration: BoxDecoration(
-//           color: Colors.orange,
-//           borderRadius: BorderRadius.circular(12),
-//         ),
-//       ),
-//     );
-//   }
-// }
-
-// class MyAnimatedIconButton extends StatefulWidget {
-//   final int activeIndex;
-//   const MyAnimatedIconButton({super.key, required this.activeIndex});
-//   @override
-//   _MyAnimatedIconButtonState createState() => _MyAnimatedIconButtonState();
-// }
-
-// class _MyAnimatedIconButtonState extends State<MyAnimatedIconButton> {
-//   @override
-//   Widget build(BuildContext context) {
-//     return Row(
-//       mainAxisAlignment: MainAxisAlignment.spaceAround,
-//       children: [
-//         _buildAnimatedIcon(
-//           context,
-//           index: 0,
-//           iconActive: Icons.house_rounded,
-//           iconInactive: Icons.home_rounded,
-//           color: Colors.white,
-//           sizeActive: 30,
-//           sizeInactive: 25,
-//         ),
-//         _buildAnimatedIcon(
-//           context,
-//           index: 1,
-//           iconActive: Icons.notifications_active_rounded,
-//           iconInactive: Icons.notifications_rounded,
-//           color: const Color.fromARGB(255, 255, 255, 255),
-//           sizeActive: 30,
-//           sizeInactive: 25,
-//         ),
-//         _buildAnimatedIcon(
-//           context,
-//           index: 2,
-//           iconActive: Icons.menu_book_rounded,
-//           iconInactive: Icons.book_rounded,
-//           color: const Color.fromARGB(255, 255, 255, 255),
-//           sizeActive: 30,
-//           sizeInactive: 25,
-//         ),
-//         _buildAnimatedIcon(
-//           context,
-//           index: 3,
-//           iconActive: Icons.bookmarks_rounded,
-//           iconInactive: Icons.bookmark_rounded,
-//           color: const Color.fromARGB(255, 255, 255, 255),
-//           sizeActive: 25,
-//           sizeInactive: 20,
-//         ),
-//       ],
-//     );
-//   }
-
-//   Widget _buildAnimatedIcon(
-//     BuildContext context, {
-//     required int index,
-//     required IconData iconActive,
-//     required IconData iconInactive,
-//     required Color color,
-//     required double sizeActive,
-//     required double sizeInactive,
-//   }) {
-//     bool isActive = index == widget.activeIndex;
-
-//     return IconButton(
-//       onPressed: () {
-//         switch (index) {
-//           case 0:
-//             Navigator.pushReplacement(
-//               context,
-//               PageRouteBuilder(
-//                 pageBuilder: (_, animation, __) =>
-//                     BaseLayout(body: HomeScreen(), activeIndex: 0),
-//                 transitionsBuilder: (_, animation, __, child) =>
-//                     FadeTransition(opacity: animation, child: child),
-//               ),
-//             );
-//             break;
-//           case 1:
-//             Navigator.push(
-//               context,
-//               PageRouteBuilder(
-//                 pageBuilder: (_, animation, __) =>
-//                     BaseLayout(body: HumeScreen(), activeIndex: 1),
-//                 transitionsBuilder: (_, animation, __, child) =>
-//                     FadeTransition(opacity: animation, child: child),
-//               ),
-//             );
-//             break;
-//           case 2:
-//             Navigator.push(
-//               context,
-//               PageRouteBuilder(
-//                 pageBuilder: (_, animation, __) =>
-//                     BaseLayout(body: HemeScreen(), activeIndex: 2),
-//                 transitionsBuilder: (_, animation, __, child) =>
-//                     FadeTransition(opacity: animation, child: child),
-//               ),
-//             );
-//             break;
-//           case 3:
-//             Navigator.push(
-//               context,
-//               PageRouteBuilder(
-//                 pageBuilder: (_, animation, __) =>
-//                     BaseLayout(body: HameScreen(), activeIndex: 3),
-//                 transitionsBuilder: (_, animation, __, child) =>
-//                     FadeTransition(opacity: animation, child: child),
-//               ),
-//             );
-//             break;
-//         }
-//       },
-//       icon: AnimatedSwitcher(
-//         duration: Duration(milliseconds: 300),
-//         transitionBuilder: (child, animation) {
-//           return ScaleTransition(scale: animation, child: child);
-//         },
-//         child: Icon(
-//           isActive ? iconActive : iconInactive,
-//           size: isActive ? sizeActive : sizeInactive,
-//           key: ValueKey<bool>(isActive),
-//           color: color,
-//         ),
-//       ),
-//     );
-//   }
-// }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-// BottomAppBar bottomNavigationBar(BuildContext context) {
-//   return BottomAppBar(
-//     color: const Color.fromARGB(255, 0, 26, 255),
-//     child: Row(
-//       mainAxisAlignment: MainAxisAlignment.spaceAround,
-//       children: [
-//         IconButton(
-//           icon: Icon(Icons.home filled, color: Colors.white),
-//           onPressed: () {
-//             Navigator.push(
-//               context,
-//               PageRouteBuil der(
-//                 pageBuilder: (context, animation, secondaryanimation) =>
-//                     HomeScreen(),
-//                 transitionsBuilder:
-//                     (context, animation, secondaryanimation, child) {
-//                       return FadeTransition(opacity: animation, child: child);
-//                     },
-//               ),
-//             );
-//           },
-//         ),
-//         IconButton(
-//           icon: Icon(Icons.search, color: Colors.white),
-//           onPressed: () {},
-//         ),
-//         IconButton(
-//           icon: Icon(Icons.settings, color: Colors.white),
-//           onPressed: () {},
-//         ),
-//       ],
-//     ),
-//   );
-// }

@@ -5,252 +5,188 @@ import 'package:moto/screen/manageAccounts.dart';
 import 'package:moto/screen/BaseLayout.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:moto/screen/motoProfile.dart';
 
 class SettingScreen extends StatelessWidget {
   const SettingScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width; // ✅ ดึงขนาดหน้าจอ
+    final screenHeight = MediaQuery.of(context).size.height;
+
     return Scaffold(
       appBar: buildCustomAppBarforthispage(context: context, title: 'Setting'),
-      backgroundColor: const Color.fromARGB(255, 255, 255, 255),
-      body: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          //User information
-          Container(child: ProfileSection()),
-          Stack(
-            children: [
-              SizedBox(
-                width: 380,
-                child: const Divider(
-                  height: 20,
-                  color: Color.fromARGB(255, 129, 129, 129),
-                ),
-              ),
-              // Container(
-              //   color: const Color.fromARGB(255, 255, 255, 255),
-              //   padding: const EdgeInsets.all(8),
-              //   child: const Text(
-              //     ' ตั้งค่า',
-              //     style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-              //   ),
-              // ),
-            ],
-          ),
+      backgroundColor: Colors.white,
+      body: SafeArea(
+        child: SingleChildScrollView(
+          // ✅ ป้องกัน Overflow
+          child: Padding(
+            padding: EdgeInsets.symmetric(
+              horizontal: screenWidth * 0.05,
+              vertical: screenHeight * 0.02,
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                // Profile
+                const ProfileSection(),
+                SizedBox(height: screenHeight * 0.02),
 
-          const SizedBox(height: 16),
+                Divider(color: Colors.grey[600], thickness: 1),
 
-          SizedBox(
-            width: 380,
-            child: ElevatedButton.icon(
-              onPressed: () {},
-              icon: const Icon(Icons.settings, size: 25),
-              label: const Text('ยานพหนะ', style: TextStyle(fontSize: 20)),
-              style: ElevatedButton.styleFrom(
-                padding: const EdgeInsets.fromLTRB(14, 10, 14, 14),
-                alignment: Alignment.centerLeft,
-                backgroundColor: const Color.fromARGB(255, 241, 241, 241),
-                foregroundColor: Colors.black,
-                elevation: 0,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
+                SizedBox(height: screenHeight * 0.02),
+
+                // ✅ สร้างเมธอดให้ปุ่ม ใช้ซ้ำได้
+                buildMenuButton(
+                  context,
+                  screenWidth,
+                  icon: Icons.motorcycle,
+                  label: 'ยานพาหนะ',
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const MotoProfilePage(),
+                      ),
+                    );
+                  },
                 ),
-              ),
+
+                buildMenuButton(
+                  context,
+                  screenWidth,
+                  icon: Icons.event_note,
+                  label: 'บันทึกเหตุการณ์',
+                  onPressed: () {},
+                ),
+
+                buildMenuButton(
+                  context,
+                  screenWidth,
+                  icon: Icons.bar_chart,
+                  label: 'สถิติ',
+                  onPressed: () {},
+                ),
+
+                buildMenuButton(
+                  context,
+                  screenWidth,
+                  icon: Icons.history,
+                  label: 'ประวัติการทำรายการ',
+                  onPressed: () {},
+                ),
+
+                buildMenuButton(
+                  context,
+                  screenWidth,
+                  icon: Icons.build,
+                  label: 'การดูแลจักรยานยนต์เบื้องต้น',
+                  onPressed: () {},
+                ),
+
+                buildMenuButton(
+                  context,
+                  screenWidth,
+                  icon: Icons.notifications_active,
+                  label: 'จัดการการแจ้งเตือน',
+                  onPressed: () {},
+                ),
+
+                SizedBox(height: screenHeight * 0.015),
+
+                Divider(color: Colors.grey[600], thickness: 1),
+
+                SizedBox(height: screenHeight * 0.02),
+
+                buildMenuButton(
+                  context,
+                  screenWidth,
+                  icon: Icons.settings,
+                  label: 'ตั้งค่า',
+                  onPressed: () {},
+                ),
+
+                buildMenuButton(
+                  context,
+                  screenWidth,
+                  icon: Icons.info_outline,
+                  label: 'เกี่ยวกับ',
+                  onPressed: () {},
+                ),
+
+                SizedBox(height: screenHeight * 0.03),
+              ],
             ),
           ),
+        ),
+      ),
+    );
+  }
 
-          const SizedBox(height: 12),
-
-          SizedBox(
-            width: 380,
-            child: ElevatedButton.icon(
-              onPressed: () {},
-              icon: const Icon(Icons.settings, size: 25),
-              label: const Text(
-                'บันทึกเหตุการณ์',
-                style: TextStyle(fontSize: 20),
-              ),
-              style: ElevatedButton.styleFrom(
-                padding: const EdgeInsets.fromLTRB(14, 10, 14, 14),
-                alignment: Alignment.centerLeft,
-                backgroundColor: const Color.fromARGB(255, 241, 241, 241),
-                foregroundColor: Colors.black,
-                elevation: 0,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
+  /// ✅ เมธอดสำหรับปุ่มเมนู
+  Widget buildMenuButton(
+    BuildContext context,
+    double screenWidth, {
+    required IconData icon,
+    required String label,
+    required VoidCallback onPressed,
+  }) {
+    return Padding(
+      padding: EdgeInsets.only(bottom: screenWidth * 0.03),
+      child: SizedBox(
+        width: double.infinity, // ✅ ให้เต็มความกว้างที่เหลือ
+        child: ElevatedButton.icon(
+          onPressed: onPressed,
+          icon: Icon(icon, size: screenWidth * 0.06, color: Colors.black87),
+          label: Text(
+            label,
+            style: TextStyle(
+              fontSize: screenWidth * 0.045,
+              color: Colors.black,
             ),
           ),
-
-          const SizedBox(height: 12),
-
-          SizedBox(
-            width: 380,
-            child: ElevatedButton.icon(
-              onPressed: () {},
-              icon: const Icon(Icons.settings, size: 25),
-              label: const Text('สถิติ', style: TextStyle(fontSize: 20)),
-              style: ElevatedButton.styleFrom(
-                padding: const EdgeInsets.fromLTRB(14, 10, 14, 14),
-                alignment: Alignment.centerLeft,
-                backgroundColor: const Color.fromARGB(255, 241, 241, 241),
-                foregroundColor: Colors.black,
-                elevation: 0,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
+          style: ElevatedButton.styleFrom(
+            padding: EdgeInsets.symmetric(
+              vertical: screenWidth * 0.03,
+              horizontal: screenWidth * 0.04,
+            ),
+            alignment: Alignment.centerLeft,
+            backgroundColor: const Color.fromARGB(255, 241, 241, 241),
+            foregroundColor: Colors.black,
+            elevation: 0,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
             ),
           ),
-
-          const SizedBox(height: 12),
-
-          SizedBox(
-            width: 380,
-            child: ElevatedButton.icon(
-              onPressed: () {},
-              icon: const Icon(Icons.settings, size: 25),
-              label: const Text(
-                'ประวัติการทำรายการ',
-                style: TextStyle(fontSize: 20),
-              ),
-              style: ElevatedButton.styleFrom(
-                padding: const EdgeInsets.fromLTRB(14, 10, 14, 14),
-                alignment: Alignment.centerLeft,
-                backgroundColor: const Color.fromARGB(255, 241, 241, 241),
-                foregroundColor: Colors.black,
-                elevation: 0,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
-            ),
-          ),
-
-          const SizedBox(height: 12),
-
-          SizedBox(
-            width: 380,
-            child: ElevatedButton.icon(
-              onPressed: () {},
-              icon: const Icon(Icons.settings, size: 25),
-              label: const Text(
-                'การดูแลจักรยานยนต์เบื่องต้น',
-                style: TextStyle(fontSize: 20),
-              ),
-              style: ElevatedButton.styleFrom(
-                padding: const EdgeInsets.fromLTRB(14, 10, 14, 14),
-                alignment: Alignment.centerLeft,
-                backgroundColor: const Color.fromARGB(255, 241, 241, 241),
-                foregroundColor: Colors.black,
-                elevation: 0,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
-            ),
-          ),
-
-          const SizedBox(height: 12),
-
-          SizedBox(
-            width: 380,
-            child: ElevatedButton.icon(
-              onPressed: () {},
-              icon: const Icon(Icons.settings, size: 25),
-              label: const Text(
-                'จัดการการแจ้งเตือน',
-                style: TextStyle(fontSize: 20),
-              ),
-              style: ElevatedButton.styleFrom(
-                padding: const EdgeInsets.fromLTRB(14, 10, 14, 14),
-                alignment: Alignment.centerLeft,
-                backgroundColor: const Color.fromARGB(255, 241, 241, 241),
-                foregroundColor: Colors.black,
-                elevation: 0,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
-            ),
-          ),
-
-          const SizedBox(height: 8),
-          SizedBox(
-            width: 380,
-            child: const Divider(
-              height: 20,
-              color: Color.fromARGB(255, 129, 129, 129),
-            ),
-          ),
-          SizedBox(height: 8),
-
-          SizedBox(
-            width: 380,
-            child: ElevatedButton.icon(
-              onPressed: () {},
-              icon: const Icon(Icons.settings, size: 25),
-              label: const Text('ตั้งค่า', style: TextStyle(fontSize: 20)),
-              style: ElevatedButton.styleFrom(
-                padding: const EdgeInsets.fromLTRB(14, 10, 14, 14),
-                alignment: Alignment.centerLeft,
-                backgroundColor: const Color.fromARGB(255, 241, 241, 241),
-                foregroundColor: Colors.black,
-                elevation: 0,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
-            ),
-          ),
-
-          const SizedBox(height: 12),
-
-          SizedBox(
-            width: 380,
-            child: ElevatedButton.icon(
-              onPressed: () {},
-              icon: const Icon(Icons.settings, size: 25),
-              label: const Text('เกี่ยวกับ', style: TextStyle(fontSize: 20)),
-              style: ElevatedButton.styleFrom(
-                padding: const EdgeInsets.fromLTRB(14, 10, 14, 14),
-                alignment: Alignment.centerLeft,
-                backgroundColor: const Color.fromARGB(255, 241, 241, 241),
-                foregroundColor: Colors.black,
-                elevation: 0,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
-            ),
-          ),
-
-          const SizedBox(height: 30),
-        ],
+        ),
       ),
     );
   }
 }
 
+/// ✅ AppBar Responsive
 PreferredSizeWidget buildCustomAppBarforthispage({
   required BuildContext context,
   required String title,
 }) {
+  final screenWidth = MediaQuery.of(context).size.width;
+  final screenHeight = MediaQuery.of(context).size.height;
+
   return PreferredSize(
-    preferredSize: const Size.fromHeight(80.0),
+    preferredSize: Size.fromHeight(screenHeight * 0.07),
     child: AppBar(
       automaticallyImplyLeading: false,
       backgroundColor: const Color.fromARGB(255, 182, 182, 182),
+      titleSpacing: 0,
       title: Row(
-        mainAxisAlignment: MainAxisAlignment.start,
         children: [
+          SizedBox(width: screenWidth * 0.02),
           IconButton(
-            icon: const Icon(
+            icon: Icon(
               Icons.menu,
-              size: 30,
-              color: Color.fromARGB(255, 0, 0, 0),
+              size: screenWidth * 0.08,
+              color: Colors.black,
             ),
             onPressed: () {
               Navigator.push(
@@ -266,13 +202,13 @@ PreferredSizeWidget buildCustomAppBarforthispage({
               );
             },
           ),
-          SvgPicture.asset('assets/SVG_logo.svg', height: 100),
-          const SizedBox(width: 8),
+          SvgPicture.asset('assets/SVG_logo.svg', height: screenHeight * 0.08),
+          SizedBox(width: screenWidth * 0.03),
           Text(
             title,
-            style: const TextStyle(
-              color: Color.fromARGB(255, 0, 0, 0),
-              fontSize: 30,
+            style: TextStyle(
+              color: Colors.black,
+              fontSize: screenWidth * 0.06,
               fontWeight: FontWeight.bold,
             ),
           ),
@@ -282,6 +218,7 @@ PreferredSizeWidget buildCustomAppBarforthispage({
   );
 }
 
+/// ✅ Profile Section
 class ProfileSection extends StatelessWidget {
   const ProfileSection({super.key});
 
@@ -299,6 +236,8 @@ class ProfileSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+
     return FutureBuilder<Map<String, dynamic>?>(
       future: fetchUserData(),
       builder: (context, snapshot) {
@@ -320,61 +259,71 @@ class ProfileSection extends StatelessWidget {
         final photoUrl = userData['photoUrl'] ?? '';
 
         return Padding(
-          padding: const EdgeInsets.all(16.0),
+          padding: EdgeInsets.all(screenWidth * 0.04),
           child: Row(
             children: [
               CircleAvatar(
-                radius: 35,
+                radius: screenWidth * 0.10,
                 backgroundImage: photoUrl.isNotEmpty
                     ? NetworkImage(photoUrl)
                     : const AssetImage('assets/default_avatar.png')
                           as ImageProvider,
               ),
-              const SizedBox(width: 16),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    name,
-                    style: const TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    email,
-                    style: const TextStyle(fontSize: 16, color: Colors.grey),
-                  ),
-                  ElevatedButton.icon(
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => const ManageAccountsScreen(),
-                        ),
-                      );
-                    },
-                    label: const Text(
-                      'จัดการบัญชีผู้ใช้',
+              SizedBox(width: screenWidth * 0.05),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      name,
                       style: TextStyle(
-                        color: Color.fromARGB(255, 255, 255, 255),
+                        fontSize: screenWidth * 0.04,
+                        fontWeight: FontWeight.bold,
                       ),
                     ),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.blue,
-                      elevation: 4,
-                      shadowColor: Colors.black,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(20),
+                    SizedBox(height: screenWidth * 0.02),
+                    Text(
+                      email,
+                      style: TextStyle(
+                        fontSize: screenWidth * 0.04,
+                        color: Colors.grey,
                       ),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 4,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    SizedBox(height: screenWidth * 0.02),
+                    ElevatedButton.icon(
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const ManageAccountsScreen(),
+                          ),
+                        );
+                      },
+                      icon: Icon(
+                        Icons.manage_accounts,
+                        size: screenWidth * 0.059,
+                        color: Colors.white,
+                      ),
+                      label: const Text(
+                        'จัดการบัญชีผู้ใช้',
+                        style: TextStyle(color: Colors.white),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.blue,
+                        elevation: 4,
+                        shadowColor: Colors.black,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        padding: EdgeInsets.symmetric(
+                          horizontal: screenWidth * 0.04,
+                          vertical: screenWidth * 0.02,
+                        ),
                       ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ],
           ),

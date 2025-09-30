@@ -1,6 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:moto/screen/BaseLayout.dart';
+import 'package:moto/screen/home.dart';
 import 'addMoto.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:moto/screen/BaseLayout.dart';
+import 'package:moto/screen/home.dart';
 
 void main() {
   runApp(const Motoprofile());
@@ -32,6 +37,15 @@ class MotoProfilePage extends StatefulWidget {
 
 class _MotoProfilePageState extends State<MotoProfilePage> {
   Map<String, dynamic>? motoData;
+  Future<List<Map<String, dynamic>>> fetchMotoData() async {
+    final user = FirebaseAuth.instance.currentUser;
+    final snapshot = await FirebaseFirestore.instance
+        .collection('users')
+        .doc(user?.uid)
+        .collection('motos')
+        .get();
+    return snapshot.docs.map((doc) => doc.data()).toList();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -45,46 +59,75 @@ class _MotoProfilePageState extends State<MotoProfilePage> {
         elevation: 1,
       ),
       body: Center(
-        child: motoData == null
-            ? const Text(
+        child: FutureBuilder<List<Map<String, dynamic>>>(
+          future: fetchMotoData(),
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const CircularProgressIndicator();
+            }
+
+            final motos = snapshot.data ?? [];
+
+            if (motos.isEmpty) {
+              return const Text(
                 'ยังไม่มีข้อมูลจักรยานยนต์',
                 style: TextStyle(fontSize: 18, color: Colors.grey),
-              )
-            : Card(
-                margin: const EdgeInsets.symmetric(
-                  horizontal: 24,
-                  vertical: 16,
-                ),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.all(24.0),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: motoData!.entries.map((entry) {
-                      return Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 4.0),
-                        child: Text(
-                          '${entry.key}: ${entry.value}',
-                          style: const TextStyle(fontSize: 16),
+              );
+            }
+
+            return ListView.builder(
+              padding: const EdgeInsets.all(16),
+              itemCount: motos.length,
+              itemBuilder: (context, index) {
+                final moto = motos[index];
+
+                return Card(
+                  margin: const EdgeInsets.symmetric(vertical: 8),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: ListTile(
+                    leading: const Icon(
+                      Icons.motorcycle,
+                      size: 32,
+                      color: Colors.teal,
+                    ),
+                    title: Text(
+                      moto['brand'] ?? 'ไม่ทราบยี่ห้อ',
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    subtitle: Text(
+                      'รุ่น: ${moto['model'] ?? '-'}\nทะเบียน: ${moto['plate'] ?? '-'}',
+                    ),
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) =>
+                              BaseLayout(body: HomeScreen(), activeIndex: 0),
                         ),
                       );
-                    }).toList(),
+                    },
                   ),
-                ),
-              ),
+                );
+              },
+            );
+          },
+        ),
       ),
+
       floatingActionButton: FloatingActionButton(
         onPressed: () async {
-          // ไปหน้า addMoto แล้วรอข้อมูลกลับมา
           final result = await Navigator.push<Map<String, dynamic>>(
             context,
             MaterialPageRoute(builder: (_) => const AddMotoPage()),
           );
           if (result != null) {
             setState(() {
+              // อัปเดตทั้ง motoData และให้ FutureBuilder โหลดใหม่
               motoData = result;
             });
           }

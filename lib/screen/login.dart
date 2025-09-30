@@ -4,6 +4,7 @@ import 'package:moto/screen/registerPage.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 
+
 class LoginField extends StatefulWidget {
   const LoginField({super.key});
   @override
@@ -27,7 +28,7 @@ class _LoginFieldState extends State<LoginField> {
       if (mounted) {
         Navigator.pushReplacementNamed(context, '/home');
 
-        // MaterialPageRoute(builder: (context) => const Motoprofile()),
+        // MaterialPageRoute(builder: (context) => const Motoprofile());
       }
     } on FirebaseAuthException catch (e) {
       String msg = 'เข้าสู่ระบบไม่สำเร็จ';
@@ -59,7 +60,7 @@ class _LoginFieldState extends State<LoginField> {
       if (mounted) {
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (context) => const Motoprofile()),
+          MaterialPageRoute(builder: (context) => const MotoProfilePage ()),
         );
       }
     } catch (e) {
