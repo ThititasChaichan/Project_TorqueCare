@@ -6,6 +6,10 @@ import 'package:moto/screen/notification.dart';
 import 'package:moto/screen/history.dart';
 import 'package:moto/screen/event.dart';
 import 'package:moto/screen/report.dart';
+import 'package:provider/provider.dart';
+import '../moto_provider.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class BaseLayout extends StatelessWidget {
   final Widget body;
@@ -28,47 +32,226 @@ PreferredSizeWidget buildCustomAppBar({
 }) {
   final screenHeight = MediaQuery.of(context).size.height;
   final screenWidth = MediaQuery.of(context).size.width;
+  final moto = context.watch<MotoProvider>().selectedMoto;
+  Map<String, dynamic>? motoData;
+  Future<List<Map<String, dynamic>>> fetchMotoData() async {
+    final user = FirebaseAuth.instance.currentUser;
+    final snapshot = await FirebaseFirestore.instance
+        .collection('users')
+        .doc(user?.uid)
+        .collection('motos')
+        .get();
+    return snapshot.docs.map((doc) => doc.data()).toList();
+  }
 
   return PreferredSize(
-    preferredSize: Size.fromHeight(screenHeight * 0.12),
+    preferredSize: Size.fromHeight(screenHeight * 0.14),
     child: AppBar(
       automaticallyImplyLeading: false,
       backgroundColor: const Color.fromARGB(255, 131, 0, 0),
-      titleSpacing: 0,
-      title: Row(
-        children: [
-          SizedBox(width: screenWidth * 0.02),
-          IconButton(
-            icon: Icon(
-              Icons.menu,
-              size: screenWidth * 0.08,
-              color: Colors.white,
-            ),
-            onPressed: () {
-              Navigator.push(
-                context,
-                PageRouteBuilder(
-                  pageBuilder: (_, animation, __) => SettingScreen(),
-                  transitionsBuilder: (_, animation, __, child) =>
-                      FadeTransition(opacity: animation, child: child),
+      flexibleSpace: SafeArea(
+        child: Padding(
+          padding: EdgeInsets.symmetric(horizontal: screenWidth * 0.02),
+          child: Column(
+            children: [
+              Row(
+                children: [
+                  SizedBox(width: screenWidth * 0.02),
+                  IconButton(
+                    icon: Icon(
+                      Icons.menu,
+                      size: screenWidth * 0.08,
+                      color: Colors.white,
+                    ),
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        PageRouteBuilder(
+                          pageBuilder: (_, animation, __) => SettingScreen(),
+                          transitionsBuilder: (_, animation, __, child) =>
+                              FadeTransition(opacity: animation, child: child),
+                        ),
+                      );
+                    },
+                  ),
+                  SvgPicture.asset(
+                    'assets/SVG_light_logo.svg',
+                    height: screenHeight * 0.08,
+                  ),
+                  SizedBox(width: screenWidth * 0.02),
+                  Text(
+                    title,
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: screenWidth * 0.06,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
+              SizedBox(height: screenHeight * 0.005),
+              Container(
+                transformAlignment: Alignment.center,
+                width: screenWidth * 0.95,
+                height: screenHeight * 0.04,
+                decoration: BoxDecoration(
+                  color: const Color.fromARGB(255, 255, 255, 255),
+                  borderRadius: BorderRadius.circular(8),
                 ),
-              );
-            },
+                alignment: Alignment.center,
+                child: Stack(
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.start,
+                      children: [
+                        SizedBox(width: screenWidth * 0.02),
+                        if (moto?['brand'] == 'Honda')
+                          SvgPicture.asset(
+                            'assets/moto_logo/honda.svg',
+                            width: screenWidth * 0.1,
+                          )
+                        else if (moto?['brand'] == 'Yamaha')
+                          SvgPicture.asset(
+                            'assets/moto_logo/yamaha.svg',
+                            width: screenWidth * 0.1,
+                          )
+                        else if (moto?['brand'] == 'Suzuki')
+                          SvgPicture.asset(
+                            'assets/moto_logo/suzuki.svg',
+                            width: screenWidth * 0.1,
+                          )
+                        else
+                          Icon(
+                            Icons.motorcycle,
+                            size: screenWidth * 0.07,
+                            color: Colors.teal,
+                          ),
+                        Text(
+                          '  ${moto?['brand'] ?? '-'}',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            color: Colors.black,
+                            fontSize: screenWidth * 0.050,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                        Text(
+                          ' ${moto?['model'] ?? '-'}',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            color: Colors.black,
+                            fontSize: screenWidth * 0.045,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        Text(
+                          ' | ${moto?['plate'] ?? '-'}',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            color: Colors.black,
+                            fontSize: screenWidth * 0.040,
+                          ),
+                        ),
+                      ],
+                    ),
+                    Positioned(
+                      right: 0,
+                      top: -screenHeight * 0.005,
+                      child: IconButton(
+                        padding: EdgeInsets.only(
+                          left: screenWidth * 0.0455,
+                          top: screenHeight * 0.001,
+                        ),
+                        icon: Icon(
+                          Icons.keyboard_arrow_down_rounded,
+                          color: const Color.fromARGB(255, 255, 0, 0),
+                          size: screenWidth * 0.1,
+                        ),
+                        onPressed: () async {
+                          // โหลดข้อมูลจาก Firestore
+                          final user = FirebaseAuth.instance.currentUser;
+                          final snapshot = await FirebaseFirestore.instance
+                              .collection('users')
+                              .doc(user?.uid)
+                              .collection('motos')
+                              .get();
+
+                          final motos = snapshot.docs
+                              .map((doc) => doc.data())
+                              .toList();
+
+                          if (motos.isEmpty) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text('ยังไม่มีข้อมูลรถของคุณ')),
+                            );
+                            return;
+                          }
+
+                          final value = await showMenu<Map<String, dynamic>>(
+                            context: context,
+                            position: RelativeRect.fromLTRB(200, 150, 0, 0),
+                            items: [
+                              PopupMenuItem<Map<String, dynamic>>(
+                                enabled: false, // ใช้เป็น container หลัก
+                                child: Container(
+                                  width:
+                                      screenWidth *
+                                      0.7, // กำหนดความกว้างของ dropdown
+                                  height:
+                                      screenHeight *
+                                      0.3, // กำหนดความสูงของ dropdown
+                                  child: SingleChildScrollView(
+                                    child: Column(
+                                      children: motos.map((moto) {
+                                        final brand = moto['brand'] ?? '-';
+                                        final model = moto['model'] ?? '-';
+                                        final plate = moto['plate'] ?? '-';
+                                        return ListTile(
+                                          leading: brand == 'Honda'
+                                              ? SvgPicture.asset(
+                                                  'assets/moto_logo/honda.svg',
+                                                  width: 30,
+                                                )
+                                              : brand == 'Yamaha'
+                                              ? SvgPicture.asset(
+                                                  'assets/moto_logo/yamaha.svg',
+                                                  width: 30,
+                                                )
+                                              : brand == 'Suzuki'
+                                              ? SvgPicture.asset(
+                                                  'assets/moto_logo/suzuki.svg',
+                                                  width: 30,
+                                                )
+                                              : Icon(
+                                                  Icons.motorcycle,
+                                                  size: 30,
+                                                  color: Colors.teal,
+                                                ),
+                                          title: Text('$brand $model | $plate'),
+                                          onTap: () {
+                                            Navigator.pop(context, moto);
+                                          },
+                                        );
+                                      }).toList(),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          );
+
+                          if (value != null) {
+                            context.read<MotoProvider>().setMoto(value);
+                          }
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
-          SvgPicture.asset(
-            'assets/SVG_light_logo.svg',
-            height: screenHeight * 0.08, // responsive
-          ),
-          SizedBox(width: screenWidth * 0.02),
-          Text(
-            title,
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: screenWidth * 0.06, // responsive font
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-        ],
+        ),
       ),
     ),
   );

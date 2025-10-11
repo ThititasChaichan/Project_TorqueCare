@@ -4,8 +4,8 @@ import 'package:moto/screen/home.dart';
 import 'addMoto.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:moto/screen/BaseLayout.dart';
-import 'package:moto/screen/home.dart';
+import 'package:provider/provider.dart';
+import 'package:moto/moto_provider.dart';
 
 void main() {
   runApp(const Motoprofile());
@@ -103,6 +103,8 @@ class _MotoProfilePageState extends State<MotoProfilePage> {
                       'รุ่น: ${moto['model'] ?? '-'}\nทะเบียน: ${moto['plate'] ?? '-'}',
                     ),
                     onTap: () {
+                      context.read<MotoProvider>().setMoto(moto);
+
                       Navigator.push(
                         context,
                         MaterialPageRoute(

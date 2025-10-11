@@ -174,45 +174,64 @@ PreferredSizeWidget buildCustomAppBarforthispage({
   final screenHeight = MediaQuery.of(context).size.height;
 
   return PreferredSize(
-    preferredSize: Size.fromHeight(screenHeight * 0.07),
+    preferredSize: Size.fromHeight(screenHeight * 0.10),
     child: AppBar(
       automaticallyImplyLeading: false,
       backgroundColor: const Color.fromARGB(255, 182, 182, 182),
       titleSpacing: 0,
-      title: Row(
-        children: [
-          SizedBox(width: screenWidth * 0.02),
-          IconButton(
-            icon: Icon(
-              Icons.menu,
-              size: screenWidth * 0.08,
-              color: Colors.black,
-            ),
-            onPressed: () {
-              Navigator.push(
-                context,
-                PageRouteBuilder(
-                  pageBuilder: (context, animation, secondaryanimation) =>
-                      BaseLayout(body: HomeScreen(), activeIndex: 0),
-                  transitionsBuilder:
-                      (context, animation, secondaryanimation, child) {
-                        return FadeTransition(opacity: animation, child: child);
-                      },
-                ),
-              );
-            },
+      flexibleSpace: SafeArea(
+        child: Padding(
+          padding: EdgeInsets.symmetric(horizontal: screenWidth * 0.02),
+          child: Column(
+            children: [
+              Row(
+                children: [
+                  SizedBox(width: screenWidth * 0.02),
+                  IconButton(
+                    icon: Icon(
+                      Icons.menu,
+                      size: screenWidth * 0.08,
+                      color: Colors.black,
+                    ),
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        PageRouteBuilder(
+                          pageBuilder:
+                              (context, animation, secondaryanimation) =>
+                                  BaseLayout(
+                                    body: HomeScreen(),
+                                    activeIndex: 0,
+                                  ),
+                          transitionsBuilder:
+                              (context, animation, secondaryanimation, child) {
+                                return FadeTransition(
+                                  opacity: animation,
+                                  child: child,
+                                );
+                              },
+                        ),
+                      );
+                    },
+                  ),
+                  SvgPicture.asset(
+                    'assets/SVG_logo.svg',
+                    height: screenHeight * 0.08,
+                  ),
+                  SizedBox(width: screenWidth * 0.03),
+                  Text(
+                    title,
+                    style: TextStyle(
+                      color: Colors.black,
+                      fontSize: screenWidth * 0.06,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ),
-          SvgPicture.asset('assets/SVG_logo.svg', height: screenHeight * 0.08),
-          SizedBox(width: screenWidth * 0.03),
-          Text(
-            title,
-            style: TextStyle(
-              color: Colors.black,
-              fontSize: screenWidth * 0.06,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-        ],
+        ),
       ),
     ),
   );

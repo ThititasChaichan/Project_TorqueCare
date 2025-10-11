@@ -1,18 +1,20 @@
 import 'package:flutter/material.dart';
-// import 'package:moto/screen/login.dart';
-import 'package:moto/screen/splash.dart';
-import 'package:moto/screen/home.dart';
-import 'package:moto/screen/BaseLayout.dart';
+import 'moto_provider.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'firebase_options.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'screen/login.dart';
 import 'screen/motoProfile.dart'; // หรือ home page ของคุณ
+import 'package:provider/provider.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(); // อย่าลืม init Firebase
-  runApp(const MyApp());
+  runApp(
+    MultiProvider(
+      providers: [ChangeNotifierProvider(create: (_) => MotoProvider())],
+      child: MyApp(),
+    ),
+  );
 }
 
 class MyApp extends StatelessWidget {
@@ -24,7 +26,7 @@ class MyApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       home: const AuthGate(), // ใช้ AuthGate แทนการเปิด login ทันที
       routes: {
-        '/home': (_) =>  MotoProfilePage(), // หรือหน้า home
+        '/home': (_) => MotoProfilePage(), // หรือหน้า home
         '/login': (_) => const LoginField(),
       },
     );
@@ -49,7 +51,7 @@ class AuthGate extends StatelessWidget {
 
         // ถ้ามี user อยู่แล้ว → ไปหน้า home
         if (snapshot.hasData) {
-          return  MotoProfilePage(); // หรือหน้า home
+          return MotoProfilePage(); // หรือหน้า home
         }
 
         // ถ้าไม่มี → ไปหน้า login
