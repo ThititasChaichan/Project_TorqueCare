@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/services.dart';
 
 class AddMotoPage extends StatefulWidget {
   const AddMotoPage({super.key});
@@ -23,6 +24,7 @@ class _AddMotoPageState extends State<AddMotoPage> {
   List<String> brands = [];
   List<String> models = [];
   List<String> years = [];
+  List<Map<String, dynamic>> motos = [];
 
   final distanceCtrl = TextEditingController();
   final plateCtrl = TextEditingController();
@@ -131,7 +133,12 @@ class _AddMotoPageState extends State<AddMotoPage> {
             children: [
               /// Brand
               DropdownButtonFormField<String>(
-                decoration: const InputDecoration(labelText: 'ยี่ห้อ'),
+                decoration: InputDecoration(
+                  labelText: 'ยี่ห้อ',
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
                 value: brand,
                 items: brands
                     .map((b) => DropdownMenuItem(value: b, child: Text(b)))
@@ -146,7 +153,12 @@ class _AddMotoPageState extends State<AddMotoPage> {
 
               /// Model
               DropdownButtonFormField<String>(
-                decoration: const InputDecoration(labelText: 'รุ่น'),
+                decoration: InputDecoration(
+                  labelText: 'รุ่น',
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
                 value: model,
                 items: models
                     .map((m) => DropdownMenuItem(value: m, child: Text(m)))
@@ -161,7 +173,12 @@ class _AddMotoPageState extends State<AddMotoPage> {
 
               /// Year
               DropdownButtonFormField<String>(
-                decoration: const InputDecoration(labelText: 'ปี'),
+                decoration: InputDecoration(
+                  labelText: 'ปี',
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
                 value: year,
                 items: years
                     .map((y) => DropdownMenuItem(value: y, child: Text(y)))
@@ -173,7 +190,12 @@ class _AddMotoPageState extends State<AddMotoPage> {
 
               /// Fuel type
               DropdownButtonFormField<String>(
-                decoration: const InputDecoration(labelText: 'ชนิดเชื้อเพลิง'),
+                decoration: InputDecoration(
+                  labelText: 'ชนิดเชื้อเพลิง',
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
                 value: fuelType,
                 items: fuelTypes
                     .map((f) => DropdownMenuItem(value: f, child: Text(f)))
@@ -186,8 +208,15 @@ class _AddMotoPageState extends State<AddMotoPage> {
               /// Distance
               TextFormField(
                 controller: distanceCtrl,
-                decoration: const InputDecoration(labelText: 'ระยะทาง (กม.)'),
+                maxLength: 9,
+                decoration: InputDecoration(
+                  labelText: 'ระยะทาง (กม.)',
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
                 keyboardType: TextInputType.number,
+                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                 validator: (v) =>
                     v == null || v.isEmpty ? 'กรุณากรอกระยะทาง' : null,
               ),
@@ -196,7 +225,13 @@ class _AddMotoPageState extends State<AddMotoPage> {
               /// Plate
               TextFormField(
                 controller: plateCtrl,
-                decoration: const InputDecoration(labelText: 'ป้ายทะเบียน'),
+                maxLength: 10,
+                decoration: InputDecoration(
+                  labelText: 'ป้ายทะเบียน',
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
                 keyboardType: TextInputType.text,
                 validator: (v) =>
                     v == null || v.isEmpty ? 'กรุณากรอกป้ายทะเบียน' : null,

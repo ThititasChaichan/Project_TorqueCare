@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:moto/screen/BaseLayout.dart';
 import 'package:moto/screen/home.dart';
 import 'addMoto.dart';
+import 'editMoto.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:provider/provider.dart';
@@ -44,7 +45,14 @@ class _MotoProfilePageState extends State<MotoProfilePage> {
         .doc(user?.uid)
         .collection('motos')
         .get();
-    return snapshot.docs.map((doc) => doc.data()).toList();
+
+    return snapshot.docs.map((doc) {
+      final data = Map<String, dynamic>.from(
+        doc.data() as Map<String, dynamic>,
+      );
+      data['id'] = doc.id; // เพิ่ม document id เข้าไป
+      return data;
+    }).toList();
   }
 
   @override
@@ -57,6 +65,11 @@ class _MotoProfilePageState extends State<MotoProfilePage> {
         ),
         centerTitle: true,
         elevation: 1,
+
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_rounded),
+          onPressed: () => Navigator.pop(context),
+        ),
       ),
       body: Center(
         child: FutureBuilder<List<Map<String, dynamic>>>(
@@ -100,7 +113,7 @@ class _MotoProfilePageState extends State<MotoProfilePage> {
                       ),
                     ),
                     subtitle: Text(
-                      'รุ่น: ${moto['model'] ?? '-'}\nทะเบียน: ${moto['plate'] ?? '-'}',
+                      'รุ่น: ${moto['model'] ?? '-'} (${moto['year'] ?? '-'})\nทะเบียน: ${moto['plate'] ?? '-'}',
                     ),
                     onTap: () {
                       context.read<MotoProvider>().setMoto(moto);
@@ -113,6 +126,28 @@ class _MotoProfilePageState extends State<MotoProfilePage> {
                         ),
                       );
                     },
+                    trailing: Container(
+                      padding: const EdgeInsets.only(left: 20.0),
+                      child: IconButton(
+                        icon: const Icon(
+                          Icons.edit_rounded,
+                          size: 28,
+                          color: Color.fromARGB(255, 252, 87, 75),
+                        ),
+                        onPressed: () {
+                          context.read<MotoProvider>().setMoto(moto);
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => EditMotoPage(
+                                motoId: moto['id'],
+                                existingData: moto,
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
                   ),
                 );
               },

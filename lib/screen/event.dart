@@ -1,6 +1,9 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'addEvent.dart';
 import 'notification.dart';
+import 'package:moto/moto_provider.dart';
 
 class EventScreen extends StatefulWidget {
   const EventScreen({super.key});
@@ -9,57 +12,10 @@ class EventScreen extends StatefulWidget {
   State<EventScreen> createState() => _EventScreenState();
 }
 
-class _EventScreenState extends State<EventScreen>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _controller;
-  late List<Animation<Offset>> _animations;
-  late Animation<double> _fabAnimation;
-
-  bool _isMenuOpen = false;
-
-  final List<Map<String, dynamic>> _menuItems = [
-    {"icon": Icons.settings, "text": "Settings"},
-    {"icon": Icons.favorite, "text": "Favorites"},
-    {"icon": Icons.person, "text": "Profile"},
-  ];
-
+class _EventScreenState extends State<EventScreen> {
   @override
   void initState() {
     super.initState();
-
-    _controller = AnimationController(
-      duration: const Duration(milliseconds: 400),
-      vsync: this,
-    );
-
-    _fabAnimation = Tween<double>(
-      begin: 0,
-      end: 1,
-    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
-
-    _animations = List.generate(_menuItems.length, (index) {
-      final start = 0.1 * index;
-      final end = start + 0.6;
-      return Tween<Offset>(
-        begin: const Offset(0, 1.5),
-        end: const Offset(0, 0),
-      ).animate(
-        CurvedAnimation(
-          parent: _controller,
-          curve: Interval(start, end, curve: Curves.easeOutBack),
-        ),
-      );
-    });
-  }
-
-  void _toggleMenu() {
-    if (_isMenuOpen) {
-      _controller.reverse();
-      setState(() => _isMenuOpen = false);
-    } else {
-      _controller.forward();
-      setState(() => _isMenuOpen = true);
-    }
   }
 
   Widget _buildMenuItem(IconData icon, String text) {
@@ -92,12 +48,6 @@ class _EventScreenState extends State<EventScreen>
   }
 
   @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: Stack(
@@ -123,88 +73,38 @@ class _EventScreenState extends State<EventScreen>
               ),
             ),
           ),
-
-          // Overlay + Blur
-          if (_isMenuOpen)
-            GestureDetector(
-              onTap: _toggleMenu,
-              child: BackdropFilter(
-                filter: ImageFilter.blur(sigmaX: 6, sigmaY: 6),
-                child: Container(color: Colors.black.withOpacity(0.3)),
-              ),
-            ),
-
-          // เมนูปุ่ม (อยู่เหนือ FAB)
-          if (_isMenuOpen)
-            Positioned(
-              right: 16,
-              bottom: 100, // วางเมนูเหนือ FAB
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                mainAxisSize: MainAxisSize.min,
-                children: List.generate(_menuItems.length, (index) {
-                  final item = _menuItems[index];
-                  return SlideTransition(
-                    position: _animations[index],
-                    child: Padding(
-                      padding: const EdgeInsets.only(
-                        bottom: 12,
-                      ), // เว้นแต่ละปุ่ม
-                      child: GestureDetector(
-                        onTap: () {
-                          _toggleMenu();
-
-                          // 👉 เลือกหน้าใหม่ตาม index
-                          Widget page;
-                          switch (index) {
-                            case 0:
-                              page = const NotificationScreen();
-                              break;
-                            case 1:
-                              page = const NotificationScreen();
-                              break;
-                            case 2:
-                              page = const NotificationScreen();
-                              break;
-                            default:
-                              page = const DummyPage(title: "Unknown");
-                          }
-
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(builder: (_) => page),
-                          );
-                        },
-                        child: _buildMenuItem(item["icon"], item["text"]),
-                      ),
-                    ),
-                  );
-                }),
-              ),
-            ),
-          // FAB fixed
           Positioned(
             right: 16,
             bottom: 40,
-            child: AnimatedBuilder(
-              animation: _fabAnimation,
-              builder: (_, child) {
-                return Transform.rotate(
-                  angle: _fabAnimation.value * (15.708 / 4),
-                  child: child,
+            child: FloatingActionButton(
+              onPressed: () {
+                final moto = context.read<MotoProvider>().selectedMoto;
+                if (moto == null || moto['id'] == null) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('กรุณาเลือกรถก่อนเพิ่มเหตุการณ์'),
+                    ),
+                  );
+                  return;
+                }
+                Navigator.push(
+                  context,
+                  PageRouteBuilder(
+                    pageBuilder: (_, animation, __) =>
+                        Addevent(existingData: moto),
+                    transitionsBuilder: (_, animation, __, child) =>
+                        FadeTransition(opacity: animation, child: child),
+                  ),
                 );
               },
-              child: FloatingActionButton(
-                onPressed: _toggleMenu,
-                backgroundColor: Colors.pinkAccent,
-                foregroundColor: Colors.white,
-                elevation: 6,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(30),
-                  side: const BorderSide(color: Colors.black, width: 2),
-                ),
-                child: const Icon(Icons.add, size: 28),
+              backgroundColor: Colors.pinkAccent,
+              foregroundColor: Colors.white,
+              elevation: 6,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(30),
+                side: const BorderSide(color: Colors.black, width: 2),
               ),
+              child: const Icon(Icons.add, size: 28),
             ),
           ),
         ],

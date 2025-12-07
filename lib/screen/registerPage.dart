@@ -146,8 +146,9 @@ class _RegisterPageState extends State<RegisterPage> {
                     ),
                     keyboardType: TextInputType.emailAddress,
                     validator: (v) {
-                      if (v == null || v.trim().isEmpty)
+                      if (v == null || v.trim().isEmpty) {
                         return 'กรุณากรอกอีเมล';
+                      }
                       if (!RegExp(r'^[^@]+@[^@]+\.[^@]+').hasMatch(v)) {
                         return 'รูปแบบอีเมลไม่ถูกต้อง';
                       }

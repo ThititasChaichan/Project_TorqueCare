@@ -3,7 +3,9 @@ import 'package:moto/screen/motoProfile.dart';
 import 'package:moto/screen/registerPage.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
-
+import 'package:flutter_line_sdk/flutter_line_sdk.dart';
+import 'dart:convert';
+import 'package:http/http.dart' as http;
 
 class LoginField extends StatefulWidget {
   const LoginField({super.key});
@@ -16,6 +18,53 @@ class _LoginFieldState extends State<LoginField> {
   final _userController = TextEditingController();
   final _passController = TextEditingController();
   bool _loading = false;
+
+  Future<void> _loginWithLine() async {
+    try {
+      // Login with LINE SDK
+      final result = await LineSDK.instance.login();
+      final accessToken = result.accessToken.value;
+      final profile = result.userProfile;
+
+      // ส่ง LINE token ไปยัง Cloud Function เพื่อแปลงเป็น Firebase Custom Token
+      final response = await http.post(
+        Uri.parse('YOUR_CLOUD_FUNCTION_URL'),
+        body: {'lineAccessToken': accessToken},
+      );
+
+      if (response.statusCode == 200) {
+        // รับ Firebase Custom Token จาก Cloud Function
+        final firebaseToken = json.decode(response.body)['firebaseToken'];
+
+        // Sign in to Firebase with custom token
+        await FirebaseAuth.instance.signInWithCustomToken(firebaseToken);
+
+        if (mounted) {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (_) => const MotoProfilePage()),
+          );
+        }
+      } else {
+        throw Exception('Failed to get Firebase token');
+      }
+    } catch (e) {
+      print('Login failed: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Login failed: $e')),
+      );
+    }
+  }
+
+  Future<void> signInWithLineToken(String firebaseToken) async {
+    try {
+      // sign in กับ Firebase ด้วย Custom Token
+      await FirebaseAuth.instance.signInWithCustomToken(firebaseToken);
+      print('เข้าสู่ระบบ Firebase สำเร็จ');
+    } catch (e) {
+      print('เข้าสู่ระบบ Firebase ล้มเหลว: $e');
+    }
+  }
 
   Future<void> _loginWithEmail() async {
     if (!_formKey.currentState!.validate()) return;
@@ -60,7 +109,7 @@ class _LoginFieldState extends State<LoginField> {
       if (mounted) {
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (context) => const MotoProfilePage ()),
+          MaterialPageRoute(builder: (context) => const MotoProfilePage()),
         );
       }
     } catch (e) {
@@ -117,8 +166,9 @@ class _LoginFieldState extends State<LoginField> {
                       ),
                     ),
                     validator: (v) {
-                      if (v == null || v.trim().isEmpty)
+                      if (v == null || v.trim().isEmpty) {
                         return 'กรุณากรอกอีเมล';
+                      }
                       if (!RegExp(r'^[^@]+@[^@]+\.[^@]+').hasMatch(v)) {
                         return 'รูปแบบอีเมลไม่ถูกต้อง';
                       }
@@ -218,9 +268,7 @@ class _LoginFieldState extends State<LoginField> {
                     ),
                     const SizedBox(width: 32),
                     IconButton(
-                      onPressed: () {
-                        // TODO: เพิ่มฟังก์ชัน Line Login
-                      },
+                      onPressed: _loginWithLine,
                       icon: Image.asset(
                         'assets/Line_Rounded_Solid_Light_icon.png',
                         height: 48,

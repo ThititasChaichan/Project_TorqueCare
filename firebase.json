@@ -1,1 +1,42 @@
-{"flutter":{"platforms":{"android":{"default":{"projectId":"flutter-project-torque-85cc2","appId":"1:197513505238:android:f36d995920e4a385169c77","fileOutput":"android/app/google-services.json"}},"dart":{"lib/firebase_options.dart":{"projectId":"flutter-project-torque-85cc2","configurations":{"android":"1:197513505238:android:f36d995920e4a385169c77","ios":"1:197513505238:ios:77adab52d7c660b3169c77","macos":"1:197513505238:ios:77adab52d7c660b3169c77","web":"1:197513505238:web:cb7f7c2362927cc6169c77","windows":"1:197513505238:web:ff9465fa9ab8872e169c77"}}}}}}
+{
+  "flutter": {
+    "platforms": {
+      "android": {
+        "default": {
+          "projectId": "flutter-project-torque-85cc2",
+          "appId": "1:197513505238:android:f36d995920e4a385169c77",
+          "fileOutput": "android/app/google-services.json"
+        }
+      },
+      "dart": {
+        "lib/firebase_options.dart": {
+          "projectId": "flutter-project-torque-85cc2",
+          "configurations": {
+            "android": "1:197513505238:android:f36d995920e4a385169c77",
+            "ios": "1:197513505238:ios:77adab52d7c660b3169c77",
+            "macos": "1:197513505238:ios:77adab52d7c660b3169c77",
+            "web": "1:197513505238:web:cb7f7c2362927cc6169c77",
+            "windows": "1:197513505238:web:ff9465fa9ab8872e169c77"
+          }
+        }
+      }
+    }
+  },
+  "functions": [
+    {
+      "source": "functions",
+      "codebase": "default",
+      "disallowLegacyRuntimeConfig": true,
+      "ignore": [
+        "node_modules",
+        ".git",
+        "firebase-debug.log",
+        "firebase-debug.*.log",
+        "*.local"
+      ],
+      "predeploy": [
+        "npm --prefix \"$RESOURCE_DIR\" run lint"
+      ]
+    }
+  ]
+}
