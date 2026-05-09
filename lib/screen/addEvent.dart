@@ -128,7 +128,7 @@ class _AddeventState extends State<Addevent> {
               ),
               const SizedBox(height: 20),
               ElevatedButton(onPressed: _saveMoto, child: const Text('บันทึก')),
-            ],
+  ],
           ),
         ),
       ),

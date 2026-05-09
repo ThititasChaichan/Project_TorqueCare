@@ -2,18 +2,37 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'addEvent.dart';
-import 'notification.dart';
 import 'package:moto/moto_provider.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class EventScreen extends StatefulWidget {
   const EventScreen({super.key});
-
   @override
   State<EventScreen> createState() => _EventScreenState();
 }
 
 class _EventScreenState extends State<EventScreen> {
   @override
+  Map<String, dynamic>? eventData;
+  Future<List<Map<String, dynamic>>> fetchMotoEvent(String motoId) async {
+    final user = FirebaseAuth.instance.currentUser;
+    final snapshot = await FirebaseFirestore.instance
+        .collection('users')
+        .doc(user?.uid)
+        .collection('motos')
+        .doc(motoId)
+        .collection('events')
+        .get();
+    return snapshot.docs.map((doc) {
+      final data = Map<String, dynamic>.from(
+        doc.data() as Map<String, dynamic>,
+      );
+      data['id'] = doc.id; // เพิ่ม document id เข้าไป
+      return data;
+    }).toList();
+  }
+
   void initState() {
     super.initState();
   }
@@ -53,26 +72,65 @@ class _EventScreenState extends State<EventScreen> {
       body: Stack(
         children: [
           // เนื้อหาหลัก
-          Align(
-            alignment: Alignment.topCenter,
-            child: Padding(
-              padding: const EdgeInsets.only(top: 20),
-              child: Container(
-                width: 400,
-                height: 500,
-                decoration: BoxDecoration(
-                  color: const Color.fromARGB(255, 98, 0, 255),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.black, width: 2),
-                ),
-                padding: const EdgeInsets.all(16),
-                child: const Text(
-                  'Event Screen',
-                  style: TextStyle(fontSize: 24),
-                ),
-              ),
+          FutureBuilder<List<Map<String, dynamic>>>(
+            future: fetchMotoEvent(
+              context.read<MotoProvider>().selectedMoto?['id'] ?? '',
             ),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Center(child: CircularProgressIndicator());
+              }
+
+              final motos = snapshot.data ?? [];
+
+              if (motos.isEmpty) {
+                return Center(
+                  child: const Text(
+                    'ยังไม่มีข้อมูลประวัติเหตุการณ์',
+                    style: TextStyle(fontSize: 18, color: Colors.grey),
+                  ),
+                );
+              }
+              return ListView.builder(
+                padding: const EdgeInsets.all(16),
+                itemCount: motos.length,
+                itemBuilder: (context, index) {
+                  final moto = motos[index];
+
+                  return Card(
+                    margin: const EdgeInsets.symmetric(vertical: 8),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: ListTile(
+                      title: Text(
+                        moto['title'] ?? 'ไม่ทราบยี่ห้อ',
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      subtitle: Text(moto['detail'] ?? 'ไม่ทราบรายละเอียด'),
+                      onTap: () {
+                        context.read<MotoProvider>().setMoto(moto);
+                      },
+                      trailing: Container(
+                        padding: const EdgeInsets.only(left: 20.0),
+                        child: Text(
+                          moto['date'] ?? '-',
+                          style: const TextStyle(
+                            fontSize: 14,
+                            color: Colors.grey,
+                          ),
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              );
+            },
           ),
+
           Positioned(
             right: 16,
             bottom: 40,
@@ -89,11 +147,8 @@ class _EventScreenState extends State<EventScreen> {
                 }
                 Navigator.push(
                   context,
-                  PageRouteBuilder(
-                    pageBuilder: (_, animation, __) =>
-                        Addevent(existingData: moto),
-                    transitionsBuilder: (_, animation, __, child) =>
-                        FadeTransition(opacity: animation, child: child),
+                  MaterialPageRoute(
+                    builder: (_) => Addevent(existingData: moto),
                   ),
                 );
               },

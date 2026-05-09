@@ -79,9 +79,9 @@ class _EditMotoPageState extends State<EditMotoPage> {
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid == null) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('User not signed in')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('User not signed in')));
       }
       return;
     }
@@ -91,20 +91,16 @@ class _EditMotoPageState extends State<EditMotoPage> {
     final plate = plateController.text.trim();
 
     if (brand.isEmpty || model.isEmpty || plate.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('กรุณากรอกข้อมูลให้ครบ')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('กรุณากรอกข้อมูลให้ครบ')));
       return;
     }
 
     setState(() => _loading = true);
 
     try {
-      final updateData = {
-        'brand': brand,
-        'model': model,
-        'plate': plate,
-      };
+      final updateData = {'brand': brand, 'model': model, 'plate': plate};
 
       await FirebaseFirestore.instance
           .collection('users')
@@ -125,16 +121,16 @@ class _EditMotoPageState extends State<EditMotoPage> {
       } catch (_) {}
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('บันทึกเรียบร้อย')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('บันทึกเรียบร้อย')));
         Navigator.pop(context, updatedMoto);
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('บันทึกไม่สำเร็จ: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('บันทึกไม่สำเร็จ: $e')));
       }
     } finally {
       if (mounted) setState(() => _loading = false);
@@ -152,10 +148,7 @@ class _EditMotoPageState extends State<EditMotoPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('แก้ไขข้อมูลรถ'),
-        centerTitle: true,
-      ),
+      appBar: AppBar(title: const Text('แก้ไขข้อมูลรถ'), centerTitle: true),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : Padding(

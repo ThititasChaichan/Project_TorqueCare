@@ -74,6 +74,15 @@ class _SplashScreenState extends State<SplashScreen>
         }
       });
 
+      @override
+      void dispose() {
+        // ✅ ต้องสั่งทำลาย Controller ทุกตัวที่สร้างขึ้น
+        _controller.dispose();
+        _controller2.dispose();
+        _controller3.dispose();
+        super.dispose(); // เรียก super ไว้บรรทัดสุดท้ายเสมอ
+      }
+
       // รอ 2 วินาที แล้วไปหน้า Home
       // Timer(const Duration(seconds: 5), () {
       //   Navigator.of(context).pushReplacementNamed('/home');
