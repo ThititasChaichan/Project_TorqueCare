@@ -4,13 +4,15 @@ import 'moto_provider.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_line_sdk/flutter_line_sdk.dart';
-import 'screen/motoProfile.dart'; // หรือ home page ของคุณ
+import 'screen/motoProfile.dart';
+import 'notification_service.dart';
 import 'package:provider/provider.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await LineSDK.instance.setup('2008276410');
   await Firebase.initializeApp(); // อย่าลืม init Firebase
+  await NotificationService().init();
   runApp(
     MultiProvider(
       providers: [ChangeNotifierProvider(create: (_) => MotoProvider())],

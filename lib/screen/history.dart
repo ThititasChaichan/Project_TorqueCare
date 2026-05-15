@@ -158,10 +158,14 @@ class _HistoryScreenState extends State<HistoryScreen>
                           Widget page;
                           switch (index) {
                             case 0:
-                              page = const AddPaperNotificationScreen();
+                              page = const DummyPage(
+                                title: "Service Notification",
+                              );
                               break;
                             case 1:
-                              page = const AddServiceNotificationScreen();
+                              page = const DummyPage(
+                                title: "Paper Notification",
+                              );
                               break;
                             default:
                               page = const DummyPage(title: "Unknown");

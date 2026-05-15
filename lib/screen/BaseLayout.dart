@@ -178,7 +178,7 @@ PreferredSizeWidget buildCustomAppBar({
                               .get();
 
                           final motos = snapshot.docs
-                              .map((doc) => doc.data())
+                              .map((doc) => {...doc.data(), 'id': doc.id})
                               .toList();
 
                           if (motos.isEmpty) {
@@ -309,11 +309,12 @@ class _AnimatedBarState extends State<AnimatedBar>
     with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   late Animation<double> _alignX;
-  double _currentX = -1;
+  late double _currentX;
 
   double getAlignX(int index, int itemCount) {
-    double x = (index / (itemCount - 0.8)) * 2 - 1;
-    return x + 0.05;
+    // กลับมาใช้เลขที่คุณปรับไว้เป๊ะๆ เพื่อให้ตำแหน่งอยู่ที่เดิม
+    double x = (index / (itemCount - 0.7)) * 2 - 1;
+    return x + 0.08; // ปรับเล็กน้อยเพื่อให้ตรงกับตำแหน่งไอคอน
   }
 
   @override
@@ -321,15 +322,32 @@ class _AnimatedBarState extends State<AnimatedBar>
     super.initState();
     _controller = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 400),
+      duration: const Duration(milliseconds: 1000),
     );
 
+    // 1. ดึงตำแหน่งหน้าเก่าจาก Provider มาเป็นจุดเริ่มต้น (Begin)
+    final lastIdx = context.read<MotoProvider>().lastIndex;
+    final beginX = getAlignX(lastIdx, 5);
+
+    // 2. ตำแหน่งหน้าปัจจุบันที่ต้องการไป (End)
     _currentX = getAlignX(widget.activeIndex, 5);
 
-    _alignX = Tween<double>(
-      begin: _currentX,
-      end: _currentX,
-    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
+    _alignX =
+        Tween<double>(
+          begin: beginX, // เริ่มจากตำแหน่งหน้าที่แล้ว
+          end: _currentX, // ไปยังตำแหน่งหน้าปัจจุบัน
+        ).animate(
+          CurvedAnimation(parent: _controller, curve: Curves.easeInOutBack),
+        );
+
+    // 3. สั่งให้เลื่อนทันทีที่หน้าจอถูกสร้าง
+    if (lastIdx != widget.activeIndex) {
+      _controller.forward();
+      // อัปเดตค่า Index ปัจจุบันลง Provider เพื่อรอไว้สำหรับหน้าถัดไป
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        context.read<MotoProvider>().setIndex(widget.activeIndex);
+      });
+    }
   }
 
   @override
@@ -338,10 +356,16 @@ class _AnimatedBarState extends State<AnimatedBar>
     if (oldWidget.activeIndex != widget.activeIndex) {
       final newX = getAlignX(widget.activeIndex, 5);
 
-      _alignX = Tween<double>(
-        begin: _currentX,
-        end: newX,
-      ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
+      _alignX =
+          Tween<double>(
+            begin: _currentX,
+            end: newX, // หรือ _currentX ใน initState
+          ).animate(
+            CurvedAnimation(
+              parent: _controller,
+              curve: Curves.easeOutBack, // ใช้ตัวนี้แทน backOut ครับ
+            ),
+          );
 
       _controller.reset();
       _controller.forward();
@@ -360,21 +384,49 @@ class _AnimatedBarState extends State<AnimatedBar>
     final screenWidth = MediaQuery.of(context).size.width;
     final screenHeight = MediaQuery.of(context).size.height;
 
+    // Animation สำหรับ scale width — หดตอนกลางทาง แล้วขยายกลับ
+    final scaleX = Tween<double>(begin: 1.0, end: 1.0).animate(
+      CurvedAnimation(parent: _controller, curve: const Interval(0.0, 1.0)),
+    );
+
+    // ใช้ TweenSequence แทน — หด→ขยาย
+    final widthAnim = TweenSequence<double>([
+      TweenSequenceItem(
+        tween: Tween(
+          begin: 1.0,
+          end: 0.5,
+        ).chain(CurveTween(curve: Curves.easeIn)),
+        weight: 50,
+      ),
+      TweenSequenceItem(
+        tween: Tween(
+          begin: 0.5,
+          end: 1.0,
+        ).chain(CurveTween(curve: Curves.easeOut)),
+        weight: 50,
+      ),
+    ]).animate(_controller);
+
     return AnimatedBuilder(
-      animation: _alignX,
+      animation: _controller,
       builder: (context, child) {
         return Align(
           alignment: Alignment(_alignX.value, 1.0),
           child: Container(
-            width: screenWidth * 0.12,
-            height: screenHeight * 0.02,
-            margin: EdgeInsets.symmetric(
-              horizontal: screenWidth * 0.015,
-              vertical: screenHeight * 0.01,
-            ),
+            // width หดเหลือครึ่งตอนกลางทาง
+            width: screenWidth * 0.12 * widthAnim.value,
+            height: screenHeight * 0.008,
+            margin: EdgeInsets.only(bottom: screenHeight * 0.005),
             decoration: BoxDecoration(
               color: const Color.fromARGB(255, 31, 2, 158),
               borderRadius: BorderRadius.circular(screenWidth * 0.03),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.2),
+                  blurRadius: 4,
+                  offset: const Offset(0, 2),
+                ),
+              ],
             ),
           ),
         );

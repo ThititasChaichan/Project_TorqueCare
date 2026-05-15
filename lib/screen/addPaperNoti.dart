@@ -4,7 +4,18 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 
 class AddPaperNotificationScreen extends StatefulWidget {
-  const AddPaperNotificationScreen({super.key});
+  final String motoId;
+  final String motoLabel;
+  final Map<String, dynamic>? existingData; // ถ้ามี = mode แก้ไข
+  final String? docPath; // path ใน Firestore สำหรับแก้ไข/ลบ
+
+  const AddPaperNotificationScreen({
+    super.key,
+    required this.motoId,
+    required this.motoLabel,
+    this.existingData,
+    this.docPath,
+  });
 
   @override
   State<AddPaperNotificationScreen> createState() =>
@@ -13,21 +24,14 @@ class AddPaperNotificationScreen extends StatefulWidget {
 
 class _AddPaperNotificationScreenState
     extends State<AddPaperNotificationScreen> {
-  // --- Form and State Variables ---
   final _formKey = GlobalKey<FormState>();
-  String? userId = FirebaseAuth.instance.currentUser?.uid;
   bool _loading = false;
+  bool get _isEditMode => widget.existingData != null;
 
-  // Selected Values
-  String? _selectedCategory = 'เอกสาร'; // หมวดหมู่หลัก
-  String? _selectedPaperType; // ประเภทการดำเนินการ
-  String? _selectedMotorcycleModel;
+  String? _selectedPaperType;
   double? _selectedPrice;
-  DateTime? _selectedDate;
   DateTime? _selectedExpiryDate;
 
-  // Predefined Lists
-  final List<String> _categories = ['เอกสาร'];
   final List<String> _papers = [
     'พ.ร.บ.',
     'ภาษีประจำปี',
@@ -35,76 +39,23 @@ class _AddPaperNotificationScreenState
     'ตรวจสภาพรถ',
     'ประกันภัย',
   ];
-  List<String> _motorcycleModelsList = [];
 
   @override
   void initState() {
     super.initState();
-    _loadMotorcycleModels();
-  }
-
-  // --- Helper Method ---
-  Future<String?> _getMotosIdFromName(String modelName) async {
-    final currentUserId = FirebaseAuth.instance.currentUser?.uid;
-    if (currentUserId == null) return null;
-
-    try {
-      final QuerySnapshot query = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(currentUserId)
-          .collection('motos')
-          .get();
-
-      for (var doc in query.docs) {
-        final data = doc.data() as Map<String, dynamic>;
-        final model = data['model']?.toString() ?? '';
-        final year = data['year']?.toString() ?? '';
-        final fullName = year.isNotEmpty ? '$model ($year)' : model;
-
-        if (fullName == modelName) {
-          return doc.id;
-        }
-      }
-      return null;
-    } catch (e) {
-      debugPrint('Error finding motosId: $e');
-      return null;
+    // ถ้าเป็น mode แก้ไข ให้ pre-fill ข้อมูลเดิม
+    if (_isEditMode) {
+      final data = widget.existingData!;
+      _selectedPaperType = data['type'];
+      _selectedPrice = (data['price'] as num?)?.toDouble();
+      final Timestamp? ts = data['expiry_date'] as Timestamp?;
+      _selectedExpiryDate = ts?.toDate();
     }
   }
 
-  // --- Data Loading Methods ---
-  Future<void> _loadMotorcycleModels() async {
-    final currentUserId = FirebaseAuth.instance.currentUser?.uid;
-    if (currentUserId == null) return;
-
-    try {
-      final QuerySnapshot query = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(currentUserId)
-          .collection('motos')
-          .orderBy('model')
-          .get();
-
-      final models = query.docs.map((doc) {
-        final data = doc.data() as Map<String, dynamic>;
-        final model = data['model']?.toString() ?? '';
-        final year = data['year']?.toString() ?? '';
-        final fullName = year.isNotEmpty ? '$model ($year)' : model;
-        return fullName;
-      }).toList();
-
-      if (mounted) {
-        setState(() => _motorcycleModelsList = models);
-      }
-    } catch (e) {
-      debugPrint('Error: $e');
-    }
-  }
-
-  // --- Selection Methods ---
-  Future<void> _selectPrice(BuildContext context) async {
-    final TextEditingController controller = TextEditingController(
-      text: _selectedPrice?.toString(),
+  Future<void> _selectPrice() async {
+    final controller = TextEditingController(
+      text: _selectedPrice?.toStringAsFixed(0),
     );
     final double? result = await showDialog<double?>(
       context: context,
@@ -114,6 +65,7 @@ class _AddPaperNotificationScreenState
           controller: controller,
           keyboardType: const TextInputType.numberWithOptions(decimal: true),
           decoration: const InputDecoration(hintText: 'โปรดใส่ราคา'),
+          autofocus: true,
         ),
         actions: [
           TextButton(
@@ -122,12 +74,7 @@ class _AddPaperNotificationScreenState
           ),
           TextButton(
             onPressed: () {
-              final text = controller.text.trim();
-              if (text.isEmpty) {
-                Navigator.of(ctx).pop(null);
-                return;
-              }
-              final parsed = double.tryParse(text);
+              final parsed = double.tryParse(controller.text.trim());
               Navigator.of(ctx).pop(parsed);
             },
             child: const Text('ตกลง'),
@@ -135,158 +82,168 @@ class _AddPaperNotificationScreenState
         ],
       ),
     );
-    if (result != null && context.mounted) {
-      setState(() => _selectedPrice = result.toDouble());
+    if (result != null && mounted) {
+      setState(() => _selectedPrice = result);
     }
   }
 
-  Future<void> _selectDate(BuildContext context, bool isExpiryDate) async {
+  Future<void> _selectExpiryDate() async {
     final DateTime? picked = await showDatePicker(
       context: context,
-      initialDate: DateTime.now(),
+      initialDate: _selectedExpiryDate ?? DateTime.now(),
       firstDate: DateTime(2000),
       lastDate: DateTime(2101),
     );
-
-    if (picked != null && context.mounted) {
-      setState(() {
-        if (isExpiryDate) {
-          _selectedExpiryDate = picked;
-        } else {
-          _selectedDate = picked;
-        }
-      });
+    if (picked != null && mounted) {
+      setState(() => _selectedExpiryDate = picked);
     }
   }
 
-  // --- Form Methods ---
   Future<void> _saveData() async {
     if (!_formKey.currentState!.validate()) return;
 
-    if (_selectedCategory == null ||
-        _selectedPaperType == null ||
-        _selectedDate == null ||
-        _selectedExpiryDate == null) {
-      _showErrorSnackBar('กรุณาเลือกข้อมูล วันที่ และ วันหมดอายุ ให้ครบถ้วน');
+    if (_selectedPaperType == null || _selectedExpiryDate == null) {
+      _showSnackBar('กรุณาเลือกประเภทและวันหมดอายุ');
       return;
     }
 
-    bool requiresMotorcycle = _selectedPaperType != 'ใบขับขี่';
-    bool requiresPrice = [
-      'พ.ร.บ.',
-      'ภาษีประจำปี',
-      'ประกันภัย',
-    ].contains(_selectedPaperType);
-
-    if (requiresMotorcycle && _selectedMotorcycleModel == null) {
-      _showErrorSnackBar('กรุณาเลือกรถจักรยานยนต์');
-      return;
-    }
-
+    final bool requiresPrice = ['พ.ร.บ.', 'ภาษีประจำปี', 'ประกันภัย']
+        .contains(_selectedPaperType);
     if (requiresPrice && _selectedPrice == null) {
-      _showErrorSnackBar('กรุณาระบุราคา');
+      _showSnackBar('กรุณาระบุราคา');
       return;
     }
 
-    final currentUserId = FirebaseAuth.instance.currentUser?.uid;
-    if (currentUserId == null) return;
+    // ใบขับขี่ไม่ต้องผูกกับรถ แต่ประเภทอื่นต้องมี motoId
+    final bool requiresMoto = _selectedPaperType != 'ใบขับขี่';
+    if (requiresMoto && widget.motoId.isEmpty) {
+      _showSnackBar('ไม่พบข้อมูลรถ กรุณาเลือกรถก่อน');
+      return;
+    }
+
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) return;
 
     setState(() => _loading = true);
 
     try {
-      String? selectedMotosId;
-
-      if (requiresMotorcycle) {
-        selectedMotosId = await _getMotosIdFromName(_selectedMotorcycleModel!);
-        if (selectedMotosId == null) {
-          _showErrorSnackBar('ไม่พบข้อมูลรถที่เลือก');
-          setState(() => _loading = false);
-          return;
-        }
-      }
-
-      // ข้อมูล Data ที่จะบันทึกใน Document สุดท้าย
       final notificationData = {
-        'model': _selectedMotorcycleModel,
         'price': _selectedPrice,
-        'date': _selectedDate,
-        'expiry_date': _selectedExpiryDate,
+        'expiry_date': Timestamp.fromDate(_selectedExpiryDate!),
         'createdAt': Timestamp.now(),
       };
 
-      // โครงสร้าง: notifications > เอกสาร > (ประเภทการดำเนินการ) > (Data)
-      if (selectedMotosId != null) {
-        // กรณีมีรถ (บันทึกใต้ motosId)
+      if (_isEditMode && widget.docPath != null) {
+        // mode แก้ไข — update document เดิม
         await FirebaseFirestore.instance
-            .collection('users')
-            .doc(currentUserId)
-            .collection('motos')
-            .doc(selectedMotosId)
-            .collection('notifications') // Collection: notifications
-            .doc(_selectedCategory) // Document: เอกสาร
-            .collection(
-              _selectedPaperType!,
-            ) // Collection: ประเภทการดำเนินการ (เช่น พ.ร.บ.)
-            .add(notificationData); // Document: Data (Auto-ID)
+            .doc(widget.docPath!)
+            .update(notificationData);
       } else {
-        // กรณีไม่มีรถ เช่น ใบขับขี่ (บันทึกใต้ user โดยตรง)
-        await FirebaseFirestore.instance
-            .collection('users')
-            .doc(currentUserId)
-            .collection('notifications') // Collection: notifications
-            .doc(_selectedCategory) // Document: เอกสาร
-            .collection(_selectedPaperType!) // Collection: ประเภทการดำเนินการ
-            .add(notificationData); // Document: Data (Auto-ID)
+        // mode เพิ่มใหม่
+        final category = 'เอกสาร';
+        final type = _selectedPaperType!;
+
+        CollectionReference colRef;
+        if (requiresMoto) {
+          colRef = FirebaseFirestore.instance
+              .collection('users')
+              .doc(uid)
+              .collection('motos')
+              .doc(widget.motoId)
+              .collection('notifications')
+              .doc(category)
+              .collection(type);
+        } else {
+          colRef = FirebaseFirestore.instance
+              .collection('users')
+              .doc(uid)
+              .collection('notifications')
+              .doc(category)
+              .collection(type);
+        }
+        await colRef.add(notificationData);
       }
 
       if (mounted) {
         Navigator.pop(context, true);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('บันทึกการแจ้งเตือนสำเร็จ!')),
-        );
+        _showSnackBar(
+            _isEditMode ? 'แก้ไขข้อมูลสำเร็จ!' : 'บันทึกการแจ้งเตือนสำเร็จ!');
       }
     } catch (e) {
-      _showErrorSnackBar('เกิดข้อผิดพลาด: $e');
+      _showSnackBar('เกิดข้อผิดพลาด: $e');
     } finally {
       if (mounted) setState(() => _loading = false);
     }
   }
 
-  void _showErrorSnackBar(String message) {
-    if (context.mounted) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(message)));
+  Future<void> _deleteData() async {
+    if (widget.docPath == null) return;
+
+    final bool? confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('ยืนยันการลบ'),
+        content: Text('ต้องการลบรายการ "${_selectedPaperType ?? ''}" นี้ใช่ไหม?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('ยกเลิก'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('ลบ'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm != true) return;
+
+    setState(() => _loading = true);
+    try {
+      await FirebaseFirestore.instance.doc(widget.docPath!).delete();
+      if (mounted) {
+        Navigator.pop(context, true);
+        _showSnackBar('ลบรายการสำเร็จ');
+      }
+    } catch (e) {
+      _showSnackBar('เกิดข้อผิดพลาด: $e');
+    } finally {
+      if (mounted) setState(() => _loading = false);
     }
   }
 
-  // --- UI Builder Methods ---
-  Widget _buildDropdown({
-    required String label,
-    required List<String> items,
-    required String? value,
-    required void Function(String?) onChanged,
-  }) {
+  void _showSnackBar(String message) {
+    if (mounted) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(message)));
+    }
+  }
+
+  Widget _buildDropdown() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          label,
-          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-        ),
+        const Text('ประเภทการดำเนินการ',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
         const SizedBox(height: 8),
         DropdownButtonFormField<String>(
-          value: value,
+          value: _selectedPaperType,
           decoration: InputDecoration(
             filled: true,
             fillColor: Colors.grey[200],
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+            border:
+                OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
           ),
-          items: items
-              .map((item) => DropdownMenuItem(value: item, child: Text(item)))
+          items: _papers
+              .map((item) =>
+                  DropdownMenuItem(value: item, child: Text(item)))
               .toList(),
-          onChanged: onChanged,
-          validator: (value) => value == null ? 'กรุณาเลือก$label' : null,
+          onChanged: _isEditMode
+              ? null // ตอนแก้ไขไม่ให้เปลี่ยนประเภท
+              : (val) => setState(() => _selectedPaperType = val),
+          validator: (v) => v == null ? 'กรุณาเลือกประเภท' : null,
         ),
       ],
     );
@@ -296,13 +253,11 @@ class _AddPaperNotificationScreenState
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          'ราคา',
-          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-        ),
+        const Text('ราคา',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
         const SizedBox(height: 8),
         InkWell(
-          onTap: () => _selectPrice(context),
+          onTap: _selectPrice,
           child: Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
@@ -313,11 +268,10 @@ class _AddPaperNotificationScreenState
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(
-                  _selectedPrice == null
-                      ? 'โปรดใส่ราคา'
-                      : _selectedPrice.toString(),
-                ),
+                Text(_selectedPrice == null
+                    ? 'โปรดใส่ราคา'
+                    : '${_selectedPrice!.toStringAsFixed(0)} บาท'),
+                const Icon(Icons.edit, size: 18, color: Colors.grey),
               ],
             ),
           ),
@@ -326,21 +280,15 @@ class _AddPaperNotificationScreenState
     );
   }
 
-  Widget _buildDateField({
-    required String label,
-    required DateTime? value,
-    required VoidCallback onTap,
-  }) {
+  Widget _buildDateField() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          label,
-          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-        ),
+        const Text('วันที่หมดอายุ',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
         const SizedBox(height: 8),
         InkWell(
-          onTap: onTap,
+          onTap: _selectExpiryDate,
           child: Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
@@ -351,11 +299,9 @@ class _AddPaperNotificationScreenState
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(
-                  value == null
-                      ? 'เลือก$label'
-                      : DateFormat('dd/MM/yyyy').format(value),
-                ),
+                Text(_selectedExpiryDate == null
+                    ? 'เลือกวันหมดอายุ'
+                    : DateFormat('dd/MM/yyyy').format(_selectedExpiryDate!)),
                 const Icon(Icons.calendar_today),
               ],
             ),
@@ -365,122 +311,87 @@ class _AddPaperNotificationScreenState
     );
   }
 
-  Widget _buildDynamicFormFields() {
-    List<Widget> formFields = [];
-
-    if (_selectedCategory == 'เอกสาร') {
-      formFields.add(
-        _buildDropdown(
-          label: 'ประเภทการดำเนินการ',
-          items: _papers,
-          value: _selectedPaperType,
-          onChanged: (val) {
-            setState(() {
-              _selectedPaperType = val;
-            });
-          },
-        ),
-      );
-      formFields.add(const SizedBox(height: 16));
-
-      if (_selectedPaperType != null) {
-        bool showMotorcycleField = _selectedPaperType != 'ใบขับขี่';
-        bool showPriceField = [
-          'พ.ร.บ.',
-          'ภาษีประจำปี',
-          'ประกันภัย',
-        ].contains(_selectedPaperType);
-
-        if (showMotorcycleField) {
-          formFields.add(
-            _buildDropdown(
-              label: 'รถจักรยานยนต์',
-              items: _motorcycleModelsList,
-              value: _selectedMotorcycleModel,
-              onChanged: (val) =>
-                  setState(() => _selectedMotorcycleModel = val),
-            ),
-          );
-          formFields.add(const SizedBox(height: 16));
-        }
-
-        if (showPriceField) {
-          formFields.add(_buildPriceField());
-          formFields.add(const SizedBox(height: 16));
-        }
-
-        formFields.add(
-          _buildDateField(
-            label: 'วันที่',
-            value: _selectedDate,
-            onTap: () => _selectDate(context, false),
-          ),
-        );
-        formFields.add(const SizedBox(height: 16));
-        formFields.add(
-          _buildDateField(
-            label: 'วันที่หมดอายุ',
-            value: _selectedExpiryDate,
-            onTap: () => _selectDate(context, true),
-          ),
-        );
-        formFields.add(const SizedBox(height: 24));
-
-        formFields.add(
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton(
-              onPressed: _saveData,
-              style: ElevatedButton.styleFrom(
-                padding: const EdgeInsets.all(16),
-                backgroundColor: const Color(0xFF007A35),
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
-              ),
-              child: const Text(
-                'บันทึกข้อมูล',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-              ),
-            ),
-          ),
-        );
-      }
-    }
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: formFields,
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
+    final bool showPrice = ['พ.ร.บ.', 'ภาษีประจำปี', 'ประกันภัย']
+        .contains(_selectedPaperType);
+
     return Scaffold(
-      appBar: AppBar(title: const Text('เพิ่มการแจ้งเตือน')),
+      appBar: AppBar(
+        title: Text(_isEditMode ? 'แก้ไขการแจ้งเตือน' : 'เพิ่มการแจ้งเตือน'),
+        actions: [
+          if (_isEditMode)
+            IconButton(
+              icon: const Icon(Icons.delete_outline, color: Colors.red),
+              tooltip: 'ลบรายการ',
+              onPressed: _deleteData,
+            ),
+        ],
+      ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : SingleChildScrollView(
-              padding: const EdgeInsets.all(16.0),
+              padding: const EdgeInsets.all(16),
               child: Form(
                 key: _formKey,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _buildDropdown(
-                      label: 'หมวดหมู่',
-                      items: _categories,
-                      value: _selectedCategory,
-                      onChanged: (val) {
-                        setState(() {
-                          _selectedCategory = val;
-                          _selectedPaperType = null;
-                        });
-                      },
-                    ),
+                    // แสดงรถที่ผูกอยู่ (read-only)
+                    if (widget.motoLabel.isNotEmpty) ...[
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF007A35).withOpacity(0.08),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(
+                              color: const Color(0xFF007A35).withOpacity(0.3)),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.motorcycle,
+                                color: Color(0xFF007A35)),
+                            const SizedBox(width: 8),
+                            Text(
+                              widget.motoLabel,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xFF007A35),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                    ],
+                    _buildDropdown(),
                     const SizedBox(height: 16),
-                    if (_selectedCategory != null) _buildDynamicFormFields(),
+                    if (_selectedPaperType != null) ...[
+                      if (showPrice) ...[
+                        _buildPriceField(),
+                        const SizedBox(height: 16),
+                      ],
+                      _buildDateField(),
+                      const SizedBox(height: 24),
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton(
+                          onPressed: _saveData,
+                          style: ElevatedButton.styleFrom(
+                            padding: const EdgeInsets.all(16),
+                            backgroundColor: const Color(0xFF007A35),
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8)),
+                          ),
+                          child: Text(
+                            _isEditMode ? 'บันทึกการแก้ไข' : 'บันทึกข้อมูล',
+                            style: const TextStyle(
+                                fontSize: 18, fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               ),

@@ -2,6 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class MotoProvider extends ChangeNotifier {
+  int _lastIndex = 0;
+  int get lastIndex => _lastIndex;
+
+  void setIndex(int index) {
+    _lastIndex = index;
+    notifyListeners();
+  }
+  
   List<Map<String, dynamic>> _motoList = [];
   Map<String, dynamic>? selectedMoto;
   String? userId; // เพิ่ม field userId

@@ -2,10 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:intl/intl.dart';
-
+import 'package:provider/provider.dart';
+import '../moto_provider.dart';
+import '../notification_service.dart';
+import 'uiverse_loader.dart';
 import 'addPaperNoti.dart';
 import 'addServiceNoti.dart';
-import 'widget.dart'; // ไฟล์ที่มี ExpandableFab
+import 'widget.dart';
 
 class NotificationScreen extends StatefulWidget {
   const NotificationScreen({super.key});
@@ -26,11 +29,9 @@ class _NotificationScreenState extends State<NotificationScreen> {
   @override
   void initState() {
     super.initState();
-    _fetchNotifications(); // โหลดข้อมูลเมื่อเปิดหน้าจอ
+    _fetchNotifications();
   }
 
-  // --- ฟังก์ชันโหลดและจัดเรียงข้อมูล ---
-  // --- ฟังก์ชันโหลดและจัดเรียงข้อมูล (อัปเกรดความเร็ว ใช้ Future.wait) ---
   Future<void> _fetchNotifications() async {
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid == null) {
@@ -59,24 +60,19 @@ class _NotificationScreenState extends State<NotificationScreen> {
     };
 
     try {
-      // 1. ดึงข้อมูลรถทั้งหมดมาก่อน
       final motosQuery = await userRef.collection('motos').get();
       final List<String> motoIds = motosQuery.docs
           .map((doc) => doc.id)
           .toList();
 
-      // สร้าง List สำหรับเก็บ "งาน" ที่ต้องวิ่งไปดึงข้อมูลพร้อมๆ กัน
       List<Future<QuerySnapshot>> fetchTasks = [];
-      // สร้าง List สำหรับเก็บว่างานไหนคือหมวดหมู่ไหน/ประเภทอะไร เพื่อให้แมปข้อมูลถูกตอนดึงเสร็จ
       List<Map<String, String>> taskMetadatas = [];
 
-      // 2. จัดเตรียมงาน (แต่ยังไม่เริ่มดึงข้อมูล)
       for (var entry in notificationStructure.entries) {
         final category = entry.key;
         final types = entry.value;
 
         for (String type in types) {
-          // เตรียมงานระดับ User (ไม่ผูกกับรถ)
           fetchTasks.add(
             userRef
                 .collection('notifications')
@@ -84,9 +80,8 @@ class _NotificationScreenState extends State<NotificationScreen> {
                 .collection(type)
                 .get(),
           );
-          taskMetadatas.add({'category': category, 'type': type});
+          taskMetadatas.add({'category': category, 'type': type, 'motoId': ''});
 
-          // เตรียมงานระดับ Moto (ผูกกับรถ)
           for (String motoId in motoIds) {
             fetchTasks.add(
               userRef
@@ -97,29 +92,39 @@ class _NotificationScreenState extends State<NotificationScreen> {
                   .collection(type)
                   .get(),
             );
-            taskMetadatas.add({'category': category, 'type': type});
+            taskMetadatas.add({
+              'category': category,
+              'type': type,
+              'motoId': motoId,
+            });
           }
         }
       }
 
-      // 3. สั่งให้ทุกงานวิ่งไปดึงข้อมูล "พร้อมกัน" (Parallel Fetching) - จุดนี้แหละที่ทำให้เร็วขึ้นมาก!
       final List<QuerySnapshot> results = await Future.wait(fetchTasks);
 
-      // 4. นำผลลัพธ์ที่ได้พร้อมๆ กัน มาแกะใส่ tempList
       for (int i = 0; i < results.length; i++) {
         final querySnapshot = results[i];
         final metadata = taskMetadatas[i];
 
         for (var doc in querySnapshot.docs) {
           final data = doc.data() as Map<String, dynamic>;
-          data['id'] = doc.id;
+          data['docId'] = doc.id;
           data['type'] = metadata['type'];
           data['category'] = metadata['category'];
+          data['motoId'] = metadata['motoId'];
+
+          if (metadata['motoId']!.isNotEmpty) {
+            data['docPath'] =
+                'users/$uid/motos/${metadata['motoId']}/notifications/${metadata['category']}/${metadata['type']}/${doc.id}';
+          } else {
+            data['docPath'] =
+                'users/$uid/notifications/${metadata['category']}/${metadata['type']}/${doc.id}';
+          }
           tempList.add(data);
         }
       }
 
-      // 5. จัดเรียงวันที่ (ใกล้หมดอายุขึ้นก่อน)
       tempList.sort((a, b) {
         final Timestamp? tA = a['expiry_date'] as Timestamp?;
         final Timestamp? tB = b['expiry_date'] as Timestamp?;
@@ -129,10 +134,56 @@ class _NotificationScreenState extends State<NotificationScreen> {
         return tA.compareTo(tB);
       });
 
-      setState(() {
-        _notifications = tempList;
-        _isLoading = false;
-      });
+      // ตั้งแจ้งเตือนล่วงหน้า 3 รอบ: 7 วัน, 3 วัน, วันเดียวกัน เวลา 09:00 น.
+      for (var data in tempList) {
+        final Timestamp? expiryTimestamp = data['expiry_date'] as Timestamp?;
+        if (expiryTimestamp != null) {
+          final DateTime expiryDate = expiryTimestamp.toDate();
+          final String type = data['type'] ?? '';
+          final String docId = data['docId'] ?? '';
+          final String body =
+              'จะหมดอายุในวันที่ ${DateFormat('dd/MM/yyyy').format(expiryDate)} โปรดเตรียมตัวดำเนินการ';
+
+          final schedules = [
+            {'days': 7, 'label': '(อีก 7 วัน)'},
+            {'days': 3, 'label': '(อีก 3 วัน)'},
+            {'days': 0, 'label': '(วันนี้!)'},
+          ];
+
+          for (var schedule in schedules) {
+            final int days = schedule['days'] as int;
+
+            // ก่อนหมดอายุ N วัน เวลา 09:00 น.
+            DateTime scheduleTime = expiryDate.subtract(Duration(days: days));
+            scheduleTime = DateTime(
+              scheduleTime.year,
+              scheduleTime.month,
+              scheduleTime.day,
+              9,
+              0,
+            );
+
+            // แจ้งเตือนเฉพาะที่ยังไม่ผ่านไป
+            if (scheduleTime.isAfter(DateTime.now())) {
+              final int notificationId = (docId + days.toString()).hashCode
+                  .abs();
+              await NotificationService().scheduleNotification(
+                id: notificationId,
+                title: 'ใกล้หมดอายุ: $type ${schedule['label']}',
+                body: body,
+                scheduledDate: scheduleTime,
+              );
+            }
+          }
+        }
+      }
+
+      if (mounted) {
+        setState(() {
+          _notifications = tempList;
+          _isLoading = false;
+        });
+      }
     } catch (e) {
       debugPrint("Error fetching notifications: $e");
       if (mounted) {
@@ -141,79 +192,133 @@ class _NotificationScreenState extends State<NotificationScreen> {
     }
   }
 
-  // --- จัดการตอนกดเลือกเมนู ---
   Future<void> _handleMenuSelected(BuildContext context, int index) async {
+    final moto = context.read<MotoProvider>().selectedMoto;
+    final String motoId = moto?['id'] ?? '';
+    final String motoLabel = moto != null
+        ? '${moto['brand'] ?? ''} ${moto['model'] ?? ''}'.trim()
+        : '';
+
     Widget page;
     switch (index) {
       case 0:
-        page = const AddPaperNotificationScreen();
+        page = AddPaperNotificationScreen(motoId: motoId, motoLabel: motoLabel);
         break;
       case 1:
-        page = const AddServiceNotificationScreen();
+        page = AddServiceNotificationScreen(
+          motoId: motoId,
+          motoLabel: motoLabel,
+        );
         break;
       default:
-        page = const Scaffold(body: Center(child: Text("Unknown")));
+        return;
     }
 
-    // รอจนกว่าหน้า Add จะถูก pop กลับมา (พร้อมส่งค่า true ถ้าบันทึกสำเร็จ)
     final result = await Navigator.push(
       context,
       MaterialPageRoute(builder: (_) => page),
     );
 
-    // ถ้ารีเทิร์นกลับมาเป็น true ให้ทำการโหลดข้อมูลใหม่
     if (result == true) {
       _fetchNotifications();
     }
   }
 
-  // --- สร้าง UI สำหรับแสดงผลแต่ละ Item ---
+  Future<void> _handleEdit(
+    BuildContext context,
+    Map<String, dynamic> data,
+  ) async {
+    final String category = data['category'] ?? '';
+    final String motoId = data['motoId'] ?? '';
+    final String motoLabel = data['model'] ?? '';
+
+    Widget page;
+    if (category == 'เอกสาร') {
+      page = AddPaperNotificationScreen(
+        motoId: motoId,
+        motoLabel: motoLabel,
+        existingData: data,
+        docPath: data['docPath'],
+      );
+    } else {
+      page = AddServiceNotificationScreen(
+        motoId: motoId,
+        motoLabel: motoLabel,
+        existingData: data,
+        docPath: data['docPath'],
+      );
+    }
+
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => page),
+    );
+
+    if (result == true) {
+      _fetchNotifications();
+    }
+  }
+
   Widget _buildNotificationItem(Map<String, dynamic> data) {
     final type = data['type'] ?? 'ไม่ระบุประเภท';
-    final model = data['model'] ?? '';
+    final category = data['category'] ?? '';
     final Timestamp? expiryTimestamp = data['expiry_date'] as Timestamp?;
+    final DateTime? expiryDate = expiryTimestamp?.toDate();
 
-    DateTime? expiryDate = expiryTimestamp?.toDate();
     bool isExpiredOrClose = false;
     String dateText = 'ไม่มีวันหมดอายุ';
 
     if (expiryDate != null) {
       dateText = DateFormat('dd MMM yyyy').format(expiryDate);
-      // เช็คว่าหมดอายุแล้วหรือเหลือน้อยกว่า 30 วันหรือเปล่า
       if (expiryDate.difference(DateTime.now()).inDays <= 30) {
         isExpiredOrClose = true;
       }
     }
+
+    final IconData categoryIcon = category == 'บริการ'
+        ? Icons.construction_rounded
+        : Icons.description;
 
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       elevation: 2,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: ListTile(
-        leading: const CircleAvatar(
-          backgroundColor: Color.fromARGB(255, 0, 122, 53),
-          child: Icon(Icons.description, color: Colors.white),
+        leading: CircleAvatar(
+          backgroundColor: category == 'บริการ'
+              ? const Color(0xFF0057A8)
+              : const Color(0xFF007A35),
+          child: Icon(categoryIcon, color: Colors.white),
         ),
         title: Text(
           type,
           style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
         ),
-        subtitle: Text(model.isNotEmpty ? model : 'ข้อมูลส่วนตัว'),
-        trailing: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          crossAxisAlignment: CrossAxisAlignment.end,
+        subtitle: Text(category),
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            const Text(
-              'วันหมดอายุ',
-              style: TextStyle(fontSize: 12, color: Colors.grey),
+            Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                const Text(
+                  'วันหมดอายุ',
+                  style: TextStyle(fontSize: 12, color: Colors.grey),
+                ),
+                Text(
+                  dateText,
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: isExpiredOrClose ? Colors.red : Colors.black87,
+                  ),
+                ),
+              ],
             ),
-            Text(
-              dateText,
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                // ถ้าใกล้หมด/หมดแล้ว ให้เป็นสีแดง เพื่อแจ้งเตือน
-                color: isExpiredOrClose ? Colors.red : Colors.black87,
-              ),
+            const SizedBox(width: 8),
+            IconButton(
+              icon: const Icon(Icons.edit_outlined, color: Colors.grey),
+              onPressed: () => _handleEdit(context, data),
             ),
           ],
         ),
@@ -223,30 +328,23 @@ class _NotificationScreenState extends State<NotificationScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final screenWidth = MediaQuery.of(context).size.width;
-
     return Scaffold(
+      appBar: AppBar(title: const Text('แจ้งเตือน')),
       body: Stack(
         children: [
-          // พื้นที่แสดงรายการแจ้งเตือน
           Positioned.fill(
             child: _isLoading
-                ? const Center(child: CircularProgressIndicator())
+                ? Center(child: UiverseLoader())
                 : _notifications.isEmpty
                 ? const Center(child: Text('ไม่มีรายการแจ้งเตือน'))
                 : ListView.builder(
-                    padding: const EdgeInsets.only(
-                      top: 10,
-                      bottom: 80,
-                    ), // เผื่อที่ให้ปุ่ม FAB
+                    padding: const EdgeInsets.only(top: 10, bottom: 80),
                     itemCount: _notifications.length,
                     itemBuilder: (context, index) {
                       return _buildNotificationItem(_notifications[index]);
                     },
                   ),
           ),
-
-          // ปุ่ม ExpandableFab
           ExpandableFab(
             menuItems: _menuItems,
             onItemSelected: (index) => _handleMenuSelected(context, index),
