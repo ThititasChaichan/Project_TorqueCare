@@ -5,6 +5,7 @@ import 'addEvent.dart';
 import 'package:moto/moto_provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'uiverse_loader.dart';
 
 class EventScreen extends StatefulWidget {
   const EventScreen({super.key});
@@ -13,6 +14,7 @@ class EventScreen extends StatefulWidget {
 }
 
 class _EventScreenState extends State<EventScreen> {
+  String? _lastMotoId;
   @override
   Map<String, dynamic>? eventData;
   Future<List<Map<String, dynamic>>> fetchMotoEvent(String motoId) async {
@@ -31,6 +33,26 @@ class _EventScreenState extends State<EventScreen> {
       data['id'] = doc.id; // เพิ่ม document id เข้าไป
       return data;
     }).toList();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+
+    // ดึง motoId ปัจจุบัน
+    final motoId = context.watch<MotoProvider>().selectedMoto?['id'];
+
+    // ถ้า motoId เปลี่ยน → ดึงข้อมูลใหม่
+    if (motoId != _lastMotoId) {
+      _lastMotoId = motoId;
+      if (motoId != null) {
+        fetchMotoEvent(motoId).then((data) {
+          setState(() => eventData = data.isNotEmpty ? data[0] : null);
+        });
+      } else {
+        setState(() => eventData = null);
+      }
+    }
   }
 
   void initState() {
@@ -78,7 +100,7 @@ class _EventScreenState extends State<EventScreen> {
             ),
             builder: (context, snapshot) {
               if (snapshot.connectionState == ConnectionState.waiting) {
-                return const Center(child: CircularProgressIndicator());
+                return Center(child: UiverseLoader());
               }
 
               final motos = snapshot.data ?? [];

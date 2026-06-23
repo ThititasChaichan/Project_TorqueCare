@@ -169,7 +169,6 @@ PreferredSizeWidget buildCustomAppBar({
                           size: screenWidth * 0.1,
                         ),
                         onPressed: () async {
-                          // โหลดข้อมูลจาก Firestore
                           final user = FirebaseAuth.instance.currentUser;
                           final snapshot = await FirebaseFirestore.instance
                               .collection('users')
@@ -181,69 +180,172 @@ PreferredSizeWidget buildCustomAppBar({
                               .map((doc) => {...doc.data(), 'id': doc.id})
                               .toList();
 
-                          if (motos.isEmpty) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(content: Text('ยังไม่มีข้อมูลรถของคุณ')),
-                            );
-                            return;
-                          }
+                          if (motos.isEmpty || !context.mounted) return;
 
-                          final value = await showMenu<Map<String, dynamic>>(
+                          showModalBottomSheet(
                             context: context,
-                            position: RelativeRect.fromLTRB(200, 150, 0, 0),
-                            items: [
-                              PopupMenuItem<Map<String, dynamic>>(
-                                enabled: false, // ใช้เป็น container หลัก
-                                child: SizedBox(
-                                  width:
-                                      screenWidth *
-                                      0.7, // กำหนดความกว้างของ dropdown
-                                  height:
-                                      screenHeight *
-                                      0.3, // กำหนดความสูงของ dropdown
-                                  child: SingleChildScrollView(
-                                    child: Column(
-                                      children: motos.map((moto) {
-                                        final brand = moto['brand'] ?? '-';
-                                        final model = moto['model'] ?? '-';
-                                        final plate = moto['plate'] ?? '-';
-                                        return ListTile(
-                                          leading: brand == 'Honda'
-                                              ? SvgPicture.asset(
-                                                  'assets/moto_logo/honda.svg',
-                                                  width: 30,
-                                                )
-                                              : brand == 'Yamaha'
-                                              ? SvgPicture.asset(
-                                                  'assets/moto_logo/yamaha.svg',
-                                                  width: 30,
-                                                )
-                                              : brand == 'Suzuki'
-                                              ? SvgPicture.asset(
-                                                  'assets/moto_logo/suzuki.svg',
-                                                  width: 30,
-                                                )
-                                              : Icon(
-                                                  Icons.motorcycle,
-                                                  size: 30,
-                                                  color: Colors.teal,
-                                                ),
-                                          title: Text('$brand $model | $plate'),
-                                          onTap: () {
-                                            Navigator.pop(context, moto);
-                                          },
-                                        );
-                                      }).toList(),
+                            isScrollControlled: true,
+                            backgroundColor: Colors.transparent,
+                            builder: (ctx) {
+                              return DraggableScrollableSheet(
+                                initialChildSize: 0.5,
+                                minChildSize: 0.3,
+                                maxChildSize: 0.9,
+                                builder: (_, scrollCtrl) {
+                                  return Container(
+                                    decoration: const BoxDecoration(
+                                      color: Colors.white,
+                                      borderRadius: BorderRadius.vertical(
+                                        top: Radius.circular(20),
+                                      ),
                                     ),
-                                  ),
-                                ),
-                              ),
-                            ],
-                          );
+                                    child: Column(
+                                      children: [
+                                        Container(
+                                          margin: const EdgeInsets.only(
+                                            top: 12,
+                                            bottom: 8,
+                                          ),
+                                          width: 40,
+                                          height: 4,
+                                          decoration: BoxDecoration(
+                                            color: Colors.grey[300],
+                                            borderRadius: BorderRadius.circular(
+                                              2,
+                                            ),
+                                          ),
+                                        ),
+                                        Padding(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 20,
+                                            vertical: 8,
+                                          ),
+                                          child: Row(
+                                            children: [
+                                              const Text(
+                                                'เลือกรถ',
+                                                style: TextStyle(
+                                                  fontSize: 18,
+                                                  fontWeight: FontWeight.bold,
+                                                ),
+                                              ),
+                                              const Spacer(),
+                                              Text(
+                                                '${motos.length} คัน',
+                                                style: TextStyle(
+                                                  color: Colors.grey[500],
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                        const Divider(height: 1),
+                                        Expanded(
+                                          child: ListView.separated(
+                                            controller: scrollCtrl,
+                                            itemCount: motos.length,
+                                            separatorBuilder: (_, __) =>
+                                                const Divider(
+                                                  height: 1,
+                                                  indent: 72,
+                                                ),
+                                            itemBuilder: (_, i) {
+                                              final m = motos[i];
+                                              final brand = m['brand'] ?? '-';
+                                              final model = m['model'] ?? '-';
+                                              final plate = m['plate'] ?? '-';
+                                              final distance =
+                                                  m['distance']?.toString() ??
+                                                  '-';
+                                              final isSelected =
+                                                  context
+                                                      .read<MotoProvider>()
+                                                      .selectedMoto?['id'] ==
+                                                  m['id'];
 
-                          if (value != null) {
-                            context.read<MotoProvider>().setMoto(value);
-                          }
+                                              return ListTile(
+                                                contentPadding:
+                                                    const EdgeInsets.symmetric(
+                                                      horizontal: 20,
+                                                      vertical: 4,
+                                                    ),
+                                                leading: Container(
+                                                  width: 48,
+                                                  height: 48,
+                                                  decoration: BoxDecoration(
+                                                    color: isSelected
+                                                        ? const Color(
+                                                            0xFF830000,
+                                                          ).withOpacity(0.08)
+                                                        : Colors.grey[100],
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                          10,
+                                                        ),
+                                                  ),
+                                                  padding: const EdgeInsets.all(
+                                                    8,
+                                                  ),
+                                                  child: brand == 'Honda'
+                                                      ? SvgPicture.asset(
+                                                          'assets/moto_logo/honda.svg',
+                                                        )
+                                                      : brand == 'Yamaha'
+                                                      ? SvgPicture.asset(
+                                                          'assets/moto_logo/yamaha.svg',
+                                                        )
+                                                      : brand == 'Suzuki'
+                                                      ? SvgPicture.asset(
+                                                          'assets/moto_logo/suzuki.svg',
+                                                        )
+                                                      : const Icon(
+                                                          Icons.motorcycle,
+                                                          color: Colors.teal,
+                                                        ),
+                                                ),
+                                                title: Text(
+                                                  '$brand $model',
+                                                  style: TextStyle(
+                                                    fontWeight: FontWeight.bold,
+                                                    color: isSelected
+                                                        ? const Color(
+                                                            0xFF830000,
+                                                          )
+                                                        : Colors.black87,
+                                                  ),
+                                                ),
+                                                subtitle: Text(
+                                                  'ทะเบียน: $plate  |  ไมล์: $distance กม.',
+                                                  style: TextStyle(
+                                                    color: Colors.grey[600],
+                                                    fontSize: 13,
+                                                  ),
+                                                ),
+                                                trailing: isSelected
+                                                    ? const Icon(
+                                                        Icons.check_circle,
+                                                        color: Color(
+                                                          0xFF830000,
+                                                        ),
+                                                      )
+                                                    : null,
+                                                onTap: () {
+                                                  context
+                                                      .read<MotoProvider>()
+                                                      .setMoto(m);
+                                                  Navigator.pop(ctx);
+                                                },
+                                              );
+                                            },
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                },
+                              );
+                            },
+                          );
                         },
                       ),
                     ),
@@ -384,12 +486,7 @@ class _AnimatedBarState extends State<AnimatedBar>
     final screenWidth = MediaQuery.of(context).size.width;
     final screenHeight = MediaQuery.of(context).size.height;
 
-    // Animation สำหรับ scale width — หดตอนกลางทาง แล้วขยายกลับ
-    final scaleX = Tween<double>(begin: 1.0, end: 1.0).animate(
-      CurvedAnimation(parent: _controller, curve: const Interval(0.0, 1.0)),
-    );
-
-    // ใช้ TweenSequence แทน — หด→ขยาย
+    // ใช้ Tween ตรงๆ แทน ไม่ต้องเก็บเป็น field
     final widthAnim = TweenSequence<double>([
       TweenSequenceItem(
         tween: Tween(
@@ -405,7 +502,7 @@ class _AnimatedBarState extends State<AnimatedBar>
         ).chain(CurveTween(curve: Curves.easeOut)),
         weight: 50,
       ),
-    ]).animate(_controller);
+    ]).animate(_controller); // ← _controller init แล้วใน initState ✅
 
     return AnimatedBuilder(
       animation: _controller,
@@ -413,7 +510,6 @@ class _AnimatedBarState extends State<AnimatedBar>
         return Align(
           alignment: Alignment(_alignX.value, 1.0),
           child: Container(
-            // width หดเหลือครึ่งตอนกลางทาง
             width: screenWidth * 0.12 * widthAnim.value,
             height: screenHeight * 0.008,
             margin: EdgeInsets.only(bottom: screenHeight * 0.005),

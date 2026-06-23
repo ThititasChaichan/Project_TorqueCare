@@ -9,6 +9,11 @@ import 'uiverse_loader.dart';
 import 'addPaperNoti.dart';
 import 'addServiceNoti.dart';
 import 'widget.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:timezone/data/latest.dart' as tz;
+import 'package:timezone/timezone.dart' as tz;
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:timezone/timezone.dart' as tz;
 
 class NotificationScreen extends StatefulWidget {
   const NotificationScreen({super.key});
@@ -134,26 +139,43 @@ class _NotificationScreenState extends State<NotificationScreen> {
         return tA.compareTo(tB);
       });
 
-      // ตั้งแจ้งเตือนล่วงหน้า 3 รอบ: 7 วัน, 3 วัน, วันเดียวกัน เวลา 09:00 น.
+      final Map<String, Map<String, dynamic>> dedupMap = {};
+      for (var data in tempList) {
+        final key = '${data['category']}_${data['type']}';
+        dedupMap[key] = data;
+      }
+      tempList = dedupMap.values.toList();
+
       for (var data in tempList) {
         final Timestamp? expiryTimestamp = data['expiry_date'] as Timestamp?;
-        if (expiryTimestamp != null) {
-          final DateTime expiryDate = expiryTimestamp.toDate();
-          final String type = data['type'] ?? '';
-          final String docId = data['docId'] ?? '';
+        if (expiryTimestamp == null) continue;
+
+        final DateTime expiryDate = expiryTimestamp.toDate();
+        final String type = data['type'] ?? '';
+        final String docId = data['docId'] ?? '';
+        final DateTime now = DateTime.now();
+
+        if (expiryDate.isBefore(now)) {
+          await NotificationService().showOverdueNotificationOnce(
+            id: '${docId}overdue'.hashCode.abs(),
+            docId: docId,
+            title: '⚠️ เลยกำหนดแล้ว: $type',
+            body:
+                'หมดอายุตั้งแต่ ${DateFormat('dd/MM/yyyy').format(expiryDate)} โปรดรีบดำเนินการ',
+          );
+        } else {
           final String body =
               'จะหมดอายุในวันที่ ${DateFormat('dd/MM/yyyy').format(expiryDate)} โปรดเตรียมตัวดำเนินการ';
-
           final schedules = [
-            {'days': 7, 'label': '(อีก 7 วัน)'},
-            {'days': 3, 'label': '(อีก 3 วัน)'},
-            {'days': 0, 'label': '(วันนี้!)'},
+            {'days': 7, 'label': '(อีก 7 วัน)', 'suffix': '7'},
+            {'days': 3, 'label': '(อีก 3 วัน)', 'suffix': '3'},
+            {'days': 0, 'label': '(วันนี้!)', 'suffix': '0'},
           ];
 
           for (var schedule in schedules) {
             final int days = schedule['days'] as int;
+            final String suffix = schedule['suffix'] as String;
 
-            // ก่อนหมดอายุ N วัน เวลา 09:00 น.
             DateTime scheduleTime = expiryDate.subtract(Duration(days: days));
             scheduleTime = DateTime(
               scheduleTime.year,
@@ -163,12 +185,11 @@ class _NotificationScreenState extends State<NotificationScreen> {
               0,
             );
 
-            // แจ้งเตือนเฉพาะที่ยังไม่ผ่านไป
-            if (scheduleTime.isAfter(DateTime.now())) {
-              final int notificationId = (docId + days.toString()).hashCode
-                  .abs();
-              await NotificationService().scheduleNotification(
-                id: notificationId,
+            if (scheduleTime.isAfter(now)) {
+              await NotificationService().scheduleNotificationOnce(
+                id: '$docId$suffix'.hashCode.abs(),
+                docId: docId,
+                daysSuffix: suffix,
                 title: 'ใกล้หมดอายุ: $type ${schedule['label']}',
                 body: body,
                 scheduledDate: scheduleTime,
@@ -329,7 +350,7 @@ class _NotificationScreenState extends State<NotificationScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('แจ้งเตือน')),
+      // appBar: AppBar(title: const Text('แจ้งเตือน')),
       body: Stack(
         children: [
           Positioned.fill(
@@ -348,6 +369,48 @@ class _NotificationScreenState extends State<NotificationScreen> {
           ExpandableFab(
             menuItems: _menuItems,
             onItemSelected: (index) => _handleMenuSelected(context, index),
+          ),
+          // เอาปุ่มนี้ไปแปะไว้ตรงไหนก็ได้ในหน้าแอป (เช่น ใน AppBar หรือ FloatingActionButton)
+          ElevatedButton(
+            onPressed: () async {
+              final plugin = FlutterLocalNotificationsPlugin();
+              const details = NotificationDetails(
+                android: AndroidNotificationDetails(
+                  'moto_test_channel',
+                  'Test Channel',
+                  importance: Importance.max,
+                  priority: Priority.high,
+                ),
+              );
+
+              try {
+                // เทส 1: สั่งเด้งทันที! (ใช้ Named Parameters ทั้งหมด)
+                await plugin.show(
+                  id: 888,
+                  title: 'เทส 1: แจ้งเตือนทันที',
+                  body: 'ถ้านี่เด้ง แปลว่าสิทธิ์แจ้งเตือนผ่านแล้ว!',
+                  notificationDetails: details,
+                );
+                print('ยิงเทส 1 ทันทีแล้ว!');
+
+                // เทส 2: ตั้งเวลา 1 นาทีแบบดิบๆ (ใช้ Named Parameters ทั้งหมด)
+                // เทส 2: ตั้งเวลา 10 วินาที
+                await plugin.zonedSchedule(
+                  id: 999,
+                  title: 'เทส 2: มาแล้วเว้ยย!',
+                  body: 'รอแค่ 10 วินาทีก็เด้งแล้ว',
+                  scheduledDate: tz.TZDateTime.now(
+                    tz.local,
+                  ).add(const Duration(seconds: 10)),
+                  notificationDetails: details,
+                  androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+                );
+                print('ยิงเทส 2 ล่วงหน้า 10 วินาทีแล้ว! (รอจับเวลา)');
+              } catch (e) {
+                print('พังครับ! Error: $e');
+              }
+            },
+            child: const Text('ทดสอบขั้นเด็ดขาด'),
           ),
         ],
       ),

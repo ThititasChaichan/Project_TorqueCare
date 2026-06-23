@@ -7,12 +7,29 @@ import 'package:flutter_line_sdk/flutter_line_sdk.dart';
 import 'screen/motoProfile.dart';
 import 'notification_service.dart';
 import 'package:provider/provider.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await LineSDK.instance.setup('2008276410');
   await Firebase.initializeApp(); // อย่าลืม init Firebase
-  await NotificationService().init();
+  // await NotificationService().init();
+
+  final notifService = NotificationService();
+  await notifService.init();
+
+  // ✅ ตรวจ reboot: pending alarms หาย แต่ flag ยังอยู่
+  final plugin = FlutterLocalNotificationsPlugin();
+  final pending = await plugin.pendingNotificationRequests();
+  final prefs = await SharedPreferences.getInstance();
+  final hasFlags = prefs.getKeys()
+      .any((k) => k.startsWith('noti_scheduled_'));
+
+  if (pending.isEmpty && hasFlags) {
+    await notifService.clearAllScheduledFlags();
+  }
+
   runApp(
     MultiProvider(
       providers: [ChangeNotifierProvider(create: (_) => MotoProvider())],
