@@ -2,6 +2,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
+import '../notification_service.dart';
 
 class AddServiceNotificationScreen extends StatefulWidget {
   final String motoId;
@@ -171,6 +172,8 @@ class _AddServiceNotificationScreenState
         await FirebaseFirestore.instance
             .doc(widget.docPath!)
             .update(notificationData);
+        final docId = widget.docPath!.split('/').last;
+        await NotificationService().clearScheduledKeys(docId);
       } else {
         // path: users/{uid}/motos/{motoId}/notifications/บริการ/{type}/{autoId}
         await FirebaseFirestore.instance

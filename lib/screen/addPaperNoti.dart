@@ -2,6 +2,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
+import '../notification_service.dart';
 
 class AddPaperNotificationScreen extends StatefulWidget {
   final String motoId;
@@ -94,6 +95,8 @@ class _AddPaperNotificationScreenState
         await FirebaseFirestore.instance
             .doc(widget.docPath!)
             .update(notificationData);
+        final docId = widget.docPath!.split('/').last;
+        await NotificationService().clearScheduledKeys(docId);
       } else {
         // mode เพิ่มใหม่
         final category = 'เอกสาร';

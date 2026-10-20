@@ -5,6 +5,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import '../moto_provider.dart';
+import '../notification_service.dart';
 import 'uiverse_loader.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -22,6 +23,8 @@ class _HomeScreenState extends State<HomeScreen> {
   void initState() {
     super.initState();
     _fetchNotifications();
+    // รันการตรวจสอบและตั้งเวลาแจ้งเตือนทั้งในเครื่องและเข้า LINE
+    NotificationService().fetchAndScheduleNotifications();
   }
 
   @override

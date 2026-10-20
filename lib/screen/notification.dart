@@ -154,14 +154,21 @@ class _NotificationScreenState extends State<NotificationScreen> {
         final String type = data['type'] ?? '';
         final String docId = data['docId'] ?? '';
         final DateTime now = DateTime.now();
+        final DateTime today = DateTime(now.year, now.month, now.day);
+        final DateTime expiryDay =
+            DateTime(expiryDate.year, expiryDate.month, expiryDate.day);
+        final int diffDays = expiryDay.difference(today).inDays;
+        final String? motoLabel = data['motoLabel'] ?? data['model'];
 
-        if (expiryDate.isBefore(now)) {
+        // ถ้าเลยกำหนด หรือเป็นวันนี้ที่เวลาหมดอายุผ่านไปแล้ว
+        if (diffDays < 0 || (diffDays == 0 && expiryDate.isBefore(now))) {
           await NotificationService().showOverdueNotificationOnce(
             id: '${docId}overdue'.hashCode.abs(),
             docId: docId,
             title: '⚠️ เลยกำหนดแล้ว: $type',
             body:
                 'หมดอายุตั้งแต่ ${DateFormat('dd/MM/yyyy').format(expiryDate)} โปรดรีบดำเนินการ',
+            motoLabel: motoLabel,
           );
         } else {
           final String body =
@@ -175,6 +182,17 @@ class _NotificationScreenState extends State<NotificationScreen> {
           for (var schedule in schedules) {
             final int days = schedule['days'] as int;
             final String suffix = schedule['suffix'] as String;
+
+            // ถ้ารอบแจ้งเตือนตรงกับวันปัจจุบัน (7 วัน, 3 วัน หรือวันนี้!) -> ส่ง LINE ทันที
+            if (diffDays == days) {
+              await NotificationService().sendLineAlertOnce(
+                docId: docId,
+                suffix: suffix,
+                title: 'ใกล้หมดอายุ: $type ${schedule['label']}',
+                body: body,
+                motoLabel: motoLabel,
+              );
+            }
 
             DateTime scheduleTime = expiryDate.subtract(Duration(days: days));
             scheduleTime = DateTime(

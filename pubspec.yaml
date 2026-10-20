@@ -30,6 +30,14 @@ dependencies:
   permission_handler: ^11.0.0
   material_symbols_icons: ^4.2873.0
   shared_preferences: ^2.2.3
+  flutter_launcher_icons: ^0.13.1
+  http: ^1.6.0
+  flutter_dotenv: ^6.0.1
+
+flutter_launcher_icons:
+  android: "launcher_icon"
+  ios: true
+  image_path: "assets/icon/app_icon.png"
 
 
 dev_dependencies:
@@ -58,6 +66,7 @@ flutter:
     - assets/moto_logo/yamaha.svg
     - assets/moto_logo/suzuki.svg
     - assets/moto_logo/honda.svg
+    - .env
 
     # - images/a_dot_ham.jpeg
 

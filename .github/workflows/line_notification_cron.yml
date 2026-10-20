@@ -1,0 +1,31 @@
+name: LINE Expiration Notification Cron
+
+on:
+  schedule:
+    # รันทุกวันเวลา 09:00 น. ตามเวลาประเทศไทย (02:00 UTC)
+    - cron: '0 2 * * *'
+  workflow_dispatch: # เปิดให้กดปุ่ม "Run workflow" เพื่อทดสอบเองได้ตลอดเวลาใน GitHub
+
+jobs:
+  send-line-notifications:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Dependencies
+        working-directory: ./functions
+        run: npm install
+
+      - name: Run LINE Notification Script
+        working-directory: ./functions
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          LINE_CHANNEL_ACCESS_TOKEN: ${{ secrets.LINE_CHANNEL_ACCESS_TOKEN }}
+        run: node cron_line_notification.js

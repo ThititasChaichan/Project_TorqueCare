@@ -1,10 +1,13 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_auth/firebase_auth.dart' hide AuthProvider;
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:moto/screen/splash.dart'; // เปลี่ยนตามชื่อไฟล์ของคุณ
+import 'package:moto/screen/splash.dart';
+import 'package:provider/provider.dart';
+import '../auth_provider.dart';
+import '../test_noti_button.dart';
 
 class ManageAccountsScreen extends StatefulWidget {
   const ManageAccountsScreen({super.key});
@@ -19,6 +22,7 @@ class _ManageAccountsScreenState extends State<ManageAccountsScreen> {
   String? _photoUrl;
   bool _loading = false;
   final _picker = ImagePicker();
+  bool _isLineLinked = false;
 
   @override
   void initState() {
@@ -38,6 +42,7 @@ class _ManageAccountsScreenState extends State<ManageAccountsScreen> {
         _usernameController.text = data['username'] ?? '';
         setState(() {
           _photoUrl = data['photoUrl'];
+          _isLineLinked = data['isLineLinked'] ?? false;
         });
       }
     }
@@ -172,6 +177,73 @@ class _ManageAccountsScreenState extends State<ManageAccountsScreen> {
                       ),
                     ),
                   ),
+                  InkWell(
+                    onTap: () async {
+                      if (_isLineLinked) {
+                        final confirm = await showDialog<bool>(
+                          context: context,
+                          builder: (ctx) => AlertDialog(
+                            title: const Text('ยืนยันการยกเลิก'),
+                            content: const Text(
+                              'คุณต้องการยกเลิกการผูกบัญชี LINE ใช่หรือไม่?',
+                            ),
+                            actions: [
+                              TextButton(
+                                onPressed: () => Navigator.pop(ctx, false),
+                                child: const Text('ยกเลิก'),
+                              ),
+                              TextButton(
+                                onPressed: () => Navigator.pop(ctx, true),
+                                child: const Text('ยืนยัน'),
+                              ),
+                            ],
+                          ),
+                        );
+                        if (confirm == true) {
+                          await context
+                              .read<AuthProvider>()
+                              .unlinkLineForNotifications(context);
+                          await _loadUserData(); // รีโหลดสถานะหลัง unlink
+                        }
+                      } else {
+                        await context
+                            .read<AuthProvider>()
+                            .linkLineForNotifications(context);
+                        await _loadUserData(); // รีโหลดสถานะหลัง link
+                      }
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(vertical: 10),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Image.asset(
+                            'assets/Line_Rounded_Solid_icon.png',
+                            width: 24,
+                            height: 24,
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            _isLineLinked
+                                ? 'ยกเลิกการผูกบัญชี LINE'
+                                : 'ผูกบัญชี LINE',
+                            style: TextStyle(
+                              color: _isLineLinked ? Colors.red : Colors.green,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  if (_isLineLinked) ...[
+                    const SizedBox(height: 10),
+                    const SizedBox(
+                      width: double.infinity,
+                      child: TestNotiButton(),
+                    ),
+                  ],
+
                   const SizedBox(height: 20),
                   SizedBox(
                     width: double.infinity,

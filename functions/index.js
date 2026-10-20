@@ -7,12 +7,15 @@
  * See a full list of supported triggers at https://firebase.google.com/docs/functions
  */
 
-const {setGlobalOptions} = require("firebase-functions");
-const {onRequest} = require("firebase-functions/https");
+const { setGlobalOptions } = require("firebase-functions");
+const { onRequest } = require("firebase-functions/https");
 const logger = require("firebase-functions/logger");
 const functions = require("firebase-functions");
 const admin = require("firebase-admin");
 const fetch = require("node-fetch");
+const axios = require("axios");
+const { defineSecret } = require("firebase-functions/params");
+const lineAccessToken = defineSecret("LINE_CHANNEL_ACCESS_TOKEN");
 
 admin.initializeApp();
 
@@ -26,7 +29,7 @@ admin.initializeApp();
 // functions should each use functions.runWith({ maxInstances: 10 }) instead.
 // In the v1 API, each function can only serve one request per container, so
 // this will be the maximum concurrent request count.
-setGlobalOptions({maxInstances: 10});
+setGlobalOptions({ maxInstances: 10 });
 
 // Create and deploy your first functions
 // https://firebase.google.com/docs/functions/get-started
@@ -36,21 +39,44 @@ setGlobalOptions({maxInstances: 10});
 //   response.send("Hello from Firebase!");
 // });
 
-exports.createFirebaseToken = functions.https.onRequest(async function(req, res) {
-  try {
-    const lineAccessToken = req.body.lineAccessToken;
+const LINE_CHANNEL_ACCESS_TOKEN = process.env.LINE_CHANNEL_ACCESS_TOKEN;
 
-    const response = await fetch("https://api.line.me/v2/profile", {
-      headers: {
-        "Authorization": `Bearer ${lineAccessToken}`
+// ฟังก์ชันนี้จะเฝ้าดูการเปลี่ยนแปลงใน collection 'users'
+exports.sendWelcomeLineMessage = functions.runWith({ secrets: [lineAccessToken] })
+  .firestore
+  .document("users/{userId}")
+  .onUpdate(async (change, context) => {
+    const newValue = change.after.data();
+    const previousValue = change.before.data();
+
+    if (newValue.lineUserId && newValue.lineUserId !== previousValue.lineUserId) {
+      const lineId = newValue.lineUserId;
+
+      const messagePayload = {
+        to: lineId,
+        messages: [
+          {
+            type: "text",
+            text: "🎉 ยินดีต้อนรับสู่ Moto App! ระบบได้ผูกบัญชีเรียบร้อยแล้ว ต่อจากนี้เราจะคอยแจ้งเตือนค่าซ่อมบำรุงให้คุณเองครับ 🏍️"
+          }
+        ]
+      };
+
+      try {
+        await axios.post(
+          "https://api.line.me/v2/bot/message/push",
+          messagePayload,
+          {
+            headers: {
+              "Content-Type": "application/json",
+              "Authorization": `Bearer ${LINE_CHANNEL_ACCESS_TOKEN}`
+            }
+          }
+        );
+        console.log("✅ ส่งข้อความต้อนรับสำเร็จสำหรับ:", lineId);
+      } catch (error) {
+        console.error("❌ ส่งข้อความล้มเหลว:", error);
       }
-    });
-
-    const lineProfile = await response.json();
-    const firebaseToken = await admin.auth().createCustomToken(lineProfile.userId);
-
-    res.json({firebaseToken});
-  } catch (error) {
-    res.status(500).json({error: error.message});
-  }
-});
+    }
+    return null;
+  });

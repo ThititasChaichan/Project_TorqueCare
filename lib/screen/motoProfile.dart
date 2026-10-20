@@ -40,23 +40,25 @@ class _MotoProfilePageState extends State<MotoProfilePage> {
   Map<String, dynamic>? motoData;
   Future<List<Map<String, dynamic>>> fetchMotoData() async {
     final user = FirebaseAuth.instance.currentUser;
+    
+    // ✅ ดักจับ Error: หาก user เป็น null ให้คืนค่าลิสต์ว่างกลับไปเลย แอปจะได้ไม่พัง
+    if (user == null) return []; 
+
     final snapshot = await FirebaseFirestore.instance
         .collection('users')
-        .doc(user?.uid)
+        .doc(user.uid)
         .collection('motos')
         .get();
 
     return snapshot.docs.map((doc) {
-      final data = Map<String, dynamic>.from(
-        doc.data() as Map<String, dynamic>,
-      );
-      data['id'] = doc.id; // เพิ่ม document id เข้าไป
+      final data = Map<String, dynamic>.from(doc.data() as Map<String, dynamic>);
+      data['id'] = doc.id;
       return data;
     }).toList();
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context,) {
     return Scaffold(
       appBar: AppBar(
         title: const Text(
