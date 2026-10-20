@@ -9,8 +9,12 @@ const path = require("path");
 const fs = require("fs");
 
 // โหลด Environment Variables จาก .env ถ้ามี (สำหรับการทดสอบในเครื่อง)
-require("dotenv").config({ path: path.join(__dirname, ".env") });
-require("dotenv").config({ path: path.join(__dirname, "..", ".env") });
+try {
+  require("dotenv").config({ path: path.join(__dirname, ".env") });
+  require("dotenv").config({ path: path.join(__dirname, "..", ".env") });
+} catch (e) {
+  // บน GitHub Actions หรือ environment อื่น ค่าถูกส่งผ่าน process.env อยู่แล้ว
+}
 
 const LINE_CHANNEL_ACCESS_TOKEN = process.env.LINE_CHANNEL_ACCESS_TOKEN;
 
